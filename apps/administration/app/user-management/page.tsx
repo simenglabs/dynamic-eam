@@ -50,11 +50,11 @@ export default async function UserManagement({ searchParams }: { searchParams: P
                   <Td>
                     {u.isLocked ? <Badge color="red">Locked</Badge> : u.isActive ? <Badge color="green">Active</Badge> : <Badge>Inactive</Badge>}
                   </Td>
-                  <Td>{new Date(u.updatedAt).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })}</Td>
+                  <Td>{new Date(u.updatedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</Td>
                 </Tr>
               ))}
               {rows.length === 0 && (
-                <tr><td colSpan={6} className="text-muted-foreground p-6 text-center">Tidak ada user.</td></tr>
+                <tr><td colSpan={6} className="text-muted-foreground p-6 text-center">No users.</td></tr>
               )}
             </tbody>
           </Table>
@@ -69,7 +69,7 @@ function Forbidden() {
   return (
     <>
       <PageHeader crumbs={["Administration", "Users Management"]} title="Users Management" />
-      <div className="px-8 py-4"><Alert>Anda tidak punya akses ke halaman ini (khusus admin).</Alert></div>
+      <div className="px-8 py-4"><Alert>You don't have access to this page (admins only).</Alert></div>
     </>
   );
 }

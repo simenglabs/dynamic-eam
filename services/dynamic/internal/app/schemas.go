@@ -22,13 +22,13 @@ func (s *Schemas) GetContentType(ctx context.Context, uid string) (*content.Cont
 
 func (s *Schemas) CreateContentType(ctx context.Context, ct *content.ContentType) (*content.ContentType, error) {
 	if _, err := s.d.Schemas.GetContentType(ctx, ct.UID); err == nil {
-		return nil, errs.Conflict("UID %q sudah dipakai", ct.UID)
+		return nil, errs.Conflict("UID %q is already in use", ct.UID)
 	}
 	ct.CreatedAt = s.d.Now()
 	return ct, s.saveContentType(ctx, ct)
 }
 
-// UpdateContentType: UID & CreatedAt tidak bisa diubah.
+// UpdateContentType: UID & CreatedAt cannot be changed.
 func (s *Schemas) UpdateContentType(ctx context.Context, uid string, ct *content.ContentType) (*content.ContentType, error) {
 	old, err := s.d.Schemas.GetContentType(ctx, uid)
 	if err != nil {
@@ -53,7 +53,7 @@ func (s *Schemas) saveContentType(ctx context.Context, ct *content.ContentType) 
 	if err := s.d.Schemas.SaveContentType(ctx, ct); err != nil {
 		return err
 	}
-	// ponytail: rebuild penuh tiap schema berubah; cukup untuk ribuan entri. Pakai alias + reindex bertahap kalau besar.
+	// ponytail: full rebuild on every schema change; fine for thousands of entries. Use an alias + incremental reindex if it grows large.
 	all, err := s.d.Entries.All(ctx, ct.UID)
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func (s *Schemas) DeleteContentType(ctx context.Context, uid string) error {
 	}
 	for _, other := range cts {
 		if other.References(uid) {
-			return errs.Conflict("masih dipakai sebagai target relation oleh %s", other.Label)
+			return errs.Conflict("still used as a relation target by %s", other.Label)
 		}
 	}
 	if err := s.d.Schemas.DeleteContentType(ctx, uid); err != nil {
@@ -99,7 +99,7 @@ func (s *Schemas) GetComponent(ctx context.Context, uid string) (*content.Compon
 
 func (s *Schemas) CreateComponent(ctx context.Context, c *content.Component) (*content.Component, error) {
 	if _, err := s.d.Schemas.GetComponent(ctx, c.UID); err == nil {
-		return nil, errs.Conflict("UID %q sudah dipakai", c.UID)
+		return nil, errs.Conflict("UID %q is already in use", c.UID)
 	}
 	c.CreatedAt = s.d.Now()
 	return c, s.saveComponent(ctx, c)
@@ -136,7 +136,7 @@ func (s *Schemas) DeleteComponent(ctx context.Context, uid string) error {
 	}
 	for _, ct := range cts {
 		if ct.UsesComponent(uid) {
-			return errs.Conflict("component masih dipakai oleh %s", ct.Label)
+			return errs.Conflict("component is still used by %s", ct.Label)
 		}
 	}
 	comps, err := s.d.Schemas.ListComponents(ctx)
@@ -145,14 +145,14 @@ func (s *Schemas) DeleteComponent(ctx context.Context, uid string) error {
 	}
 	for _, c := range comps {
 		if c.UID != uid && c.UsesComponent(uid) {
-			return errs.Conflict("component masih dipakai oleh component %s", c.Label)
+			return errs.Conflict("component is still used by component %s", c.Label)
 		}
 	}
 	return s.d.Schemas.DeleteComponent(ctx, uid)
 }
 
-// SyncConstraints menyamakan constraint database (unique) semua content type dengan schema-nya.
-// Dipanggil saat start supaya perubahan aturan (mis. unique mengabaikan entri terhapus) berlaku tanpa simpan ulang schema.
+// SyncConstraints aligns the database constraints (unique) of every content type with its schema.
+// Called at startup so rule changes (e.g. unique ignoring deleted entries) apply without re-saving the schema.
 func (s *Schemas) SyncConstraints(ctx context.Context) error {
 	cts, err := s.d.Schemas.ListContentTypes(ctx)
 	if err != nil {

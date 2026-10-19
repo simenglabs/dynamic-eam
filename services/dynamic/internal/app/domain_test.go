@@ -7,7 +7,7 @@ import (
 	"eam/services/dynamic/internal/domain/content"
 )
 
-// withDomains: master Domain (seed) + domain PRIORITY + content type "task" dengan field domain.
+// withDomains: Domain master (seed) + PRIORITY domain + content type "task" with a domain field.
 func withDomains(t *testing.T, e *env) {
 	t.Helper()
 	comp := &content.Component{UID: "domain-value", Label: "Value", Fields: []content.Field{
@@ -45,7 +45,7 @@ func TestDomainFieldAcceptsOnlyActiveValues(t *testing.T) {
 	}
 	for _, v := range []string{"OLD", "NOPE"} {
 		if _, err := e.entries.Create(e.ctx, "task", map[string]any{"name": "B", "priority": v}, u1); errs.KindOf(err) != errs.KindInvalid {
-			t.Errorf("%s harus ditolak: %v", v, err)
+			t.Errorf("%s must be rejected: %v", v, err)
 		}
 	}
 }
@@ -55,7 +55,7 @@ func TestDomainDefaultOnCreate(t *testing.T) {
 	withDomains(t, e)
 	got, err := e.entries.Create(e.ctx, "task", map[string]any{"name": "A"}, u1)
 	if err != nil || got.Data["priority"] != "MED" {
-		t.Errorf("default dari domain: %+v %v", got, err)
+		t.Errorf("default from domain: %+v %v", got, err)
 	}
 }
 
@@ -67,7 +67,7 @@ func TestDomainValuesUseCase(t *testing.T) {
 		t.Errorf("values: %+v %v", vals, err)
 	}
 	if _, err := e.entries.DomainValues(e.ctx, "NOPE"); errs.KindOf(err) != errs.KindNotFound {
-		t.Errorf("domain tidak ada: %v", err)
+		t.Errorf("missing domain: %v", err)
 	}
 	codes, _ := e.entries.DomainCodes(e.ctx)
 	if len(codes) != 1 || codes[0].Code != "PRIORITY" {
@@ -76,14 +76,14 @@ func TestDomainValuesUseCase(t *testing.T) {
 }
 
 func TestDomainMissingMasterIsClearError(t *testing.T) {
-	e := newEnv() // master Domain belum ada
+	e := newEnv() // Domain master does not exist yet
 	task := &content.ContentType{UID: "task", Label: "Task", Parent: "renkon", DisplayField: "name", Fields: []content.Field{
 		{Name: "name", Label: "Nama", Type: content.TText, Required: true},
 		{Name: "priority", Label: "Priority", Type: content.TDomain, Domain: "PRIORITY"},
 	}}
 	e.schemas.CreateContentType(e.ctx, task)
 	if _, err := e.entries.Create(e.ctx, "task", map[string]any{"name": "A", "priority": "LOW"}, u1); errs.KindOf(err) != errs.KindInvalid {
-		t.Errorf("domain belum dibuat: %v", err)
+		t.Errorf("domain not created yet: %v", err)
 	}
 }
 
@@ -91,7 +91,7 @@ func TestEnsureEntriesIdempotent(t *testing.T) {
 	e := newEnv()
 	withDomains(t, e)
 	seed := []map[string]any{
-		{"domainCode": "PRIORITY", "values": []any{map[string]any{"valueId": "X"}}}, // sudah ada: tidak ditimpa
+		{"domainCode": "PRIORITY", "values": []any{map[string]any{"valueId": "X"}}}, // already exists: not overwritten
 		{"domainCode": "HEALTH_INDEX", "values": []any{map[string]any{"valueId": "BAIK"}}},
 	}
 	created, err := e.entries.EnsureEntries(e.ctx, content.DomainUID, "domainCode", seed, u1)
@@ -99,6 +99,6 @@ func TestEnsureEntriesIdempotent(t *testing.T) {
 		t.Fatalf("created=%v err=%v", created, err)
 	}
 	if vals, _ := e.entries.DomainValues(e.ctx, "PRIORITY"); len(vals) != 2 {
-		t.Error("domain yang sudah ada tidak boleh ditimpa seed")
+		t.Error("an existing domain must not be overwritten by the seed")
 	}
 }

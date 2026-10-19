@@ -1,7 +1,7 @@
 import { api } from "@eam/ui";
 import { domainCodes, relationTargets, transitionFields, type Component, type ContentType, type DomainValue, type Option } from "./types";
 
-// Data pendukung EntryForm: component, opsi tiap target relation, dan value tiap domain (termasuk di dalam component).
+// EntryForm support data: components, options per relation target, and values per domain (including inside components).
 export async function loadFormData(ct: ContentType) {
   const list = await api<Component[]>("dynamic", "/components");
   const components = Object.fromEntries(list.map((c) => [c.uid, c]));

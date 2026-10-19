@@ -12,15 +12,15 @@ import (
 	"eam/services/dynamic/internal/seed"
 )
 
-// Seed bawaan harus valid & lengkap: kalau rusak, ketahuan di test, bukan saat service start.
+// Built-in seeds must be valid & complete: if broken, tests catch it, not service startup.
 func TestBundledSeedsAreValid(t *testing.T) {
 	cases := []struct {
 		name, parent string
 		uids, views  []string
 	}{
 		{"master", "master", []string{"master-domain", "master-classification", "master-organization", "master-site", "master-attribute", "master-map-symbol", "master-service-address"}, nil},
-		{"profile", "administration", []string{"user-profile"}, nil}, // setelah master: relasi ke Organizations & Sites
-		{"assets", "assets", []string{"asset-location", "asset-template", "asset-tnd"}, []string{"Asset Approval (Modify)", "Location Approval (Modify)", "Run Report Assets"}}, // setelah master: relasi ke Sites & Domain
+		{"profile", "administration", []string{"user-profile"}, nil}, // after master: relations to Organizations & Sites
+		{"assets", "assets", []string{"asset-location", "asset-template", "asset-tnd"}, []string{"Asset Approval (Modify)", "Location Approval (Modify)", "Run Report Assets"}}, // after master: relations to Sites & Domain
 	}
 	d := app.Deps{Schemas: memory.NewSchemas(), Entries: memory.NewEntries(), Index: memory.NewIndex(), MediaRepo: memory.NewMedia(), Files: memory.NewFiles(),
 		Now: time.Now, NewID: func() string { return "x" }}
@@ -28,7 +28,7 @@ func TestBundledSeedsAreValid(t *testing.T) {
 	for _, c := range cases {
 		raw, ok := seed.Files[c.name]
 		if !ok {
-			t.Fatalf("seed %s tidak ada", c.name)
+			t.Fatalf("seed %s is missing", c.name)
 		}
 		comps, cts, entries, err := DecodeSeed(raw)
 		if err != nil {
@@ -46,7 +46,7 @@ func TestBundledSeedsAreValid(t *testing.T) {
 		views := map[string]string{}
 		for _, ct := range cts {
 			if ct.Parent != c.parent {
-				t.Errorf("%s harus di menu %s", ct.UID, c.parent)
+				t.Errorf("%s must be in menu %s", ct.UID, c.parent)
 			}
 			for _, v := range viewsOf(ct) {
 				views[v.Label] = v.Parent
@@ -54,12 +54,12 @@ func TestBundledSeedsAreValid(t *testing.T) {
 		}
 		for _, uid := range c.uids {
 			if !slices.Contains(created, uid) {
-				t.Errorf("%s: seed tanpa %s (%v)", c.name, uid, created)
+				t.Errorf("%s: seed without %s (%v)", c.name, uid, created)
 			}
 		}
 		for _, label := range c.views {
 			if views[label] != c.parent {
-				t.Errorf("view %q tidak ada / bukan di menu %s", label, c.parent)
+				t.Errorf("view %q is missing / not in menu %s", label, c.parent)
 			}
 		}
 	}

@@ -7,13 +7,13 @@ import type { ContentType, Entry, Revision } from "../../_lib/types";
 
 const UID = "user-profile";
 
-// Profil & penempatan user (content type dinamis user-profile; field diatur di Content-Type Builder).
+// User profile & placement (dynamic content type user-profile; fields managed in Content-Type Builder).
 export default async function UserProfile({ params, searchParams }: {
   params: Promise<{ userId: string }>;
   searchParams: Promise<{ saved?: string }>;
 }) {
   const [{ userId }, { saved }, me] = await Promise.all([params, searchParams, getMe()]);
-  const crumbs = [MENU.find((m) => m.zone === "administration")?.label ?? "Administration", "Users Management", "Profil"];
+  const crumbs = [MENU.find((m) => m.zone === "administration")?.label ?? "Administration", "Users Management", "Profile"];
   const res = await guard(
     Promise.all([
       api<ContentType>("dynamic", `/content-types/${UID}`),
@@ -30,8 +30,8 @@ export default async function UserProfile({ params, searchParams }: {
   ]);
   return (
     <>
-      <PageHeader crumbs={crumbs} title="Profil & Penempatan" subtitle={`User ${userId}`} />
-      {saved && <div className="px-8 pt-2"><Alert className="border-green-100 bg-green-50 text-green-800">Profil tersimpan.</Alert></div>}
+      <PageHeader crumbs={crumbs} title="Profile & Placement" subtitle={`User ${userId}`} />
+      {saved && <div className="px-8 pt-2"><Alert className="border-green-100 bg-green-50 text-green-800">Profile saved.</Alert></div>}
       <EntryForm
         ct={ct}
         entry={exists ? profile : undefined}
@@ -43,7 +43,7 @@ export default async function UserProfile({ params, searchParams }: {
         canDelete={false}
         transitions={[]}
         saveAction={saveProfile.bind(null, userId)}
-        back={{ href: `/administration/user-management/${encodeURIComponent(userId)}`, label: "Kembali ke user" }}
+        back={{ href: `/administration/user-management/${encodeURIComponent(userId)}`, label: "Back to user" }}
       />
     </>
   );

@@ -47,7 +47,7 @@ func vehicleCT() *content.ContentType {
 	}}
 }
 
-// seed: content type location + vehicle dan satu lokasi "Gudang".
+// seed: content types location + vehicle and one location "Gudang".
 func (e *env) seed() (locID string) {
 	if _, err := e.schemas.CreateContentType(e.ctx, locationCT()); err != nil {
 		panic(err)

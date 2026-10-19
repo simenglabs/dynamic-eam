@@ -13,7 +13,7 @@ var (
 	nobody = content.Actor{ID: "n", Name: "Tanpa site"}
 )
 
-// withScope: master site (S1, S2), organization (ORG1) dan content type "pole" yang dibatasi per site.
+// withScope: site master (S1, S2), organization (ORG1) and a "pole" content type restricted per site.
 func withScope(t *testing.T, e *env) (s2Pole string) {
 	t.Helper()
 	site := &content.ContentType{UID: content.SiteUID, Label: "Sites", Parent: "master", DisplayField: "code",
@@ -47,16 +47,16 @@ func TestCreateFillsDefaultsAndEnforcesSite(t *testing.T) {
 	withScope(t, e)
 	got, err := e.entries.Create(e.ctx, "pole", map[string]any{"code": "BARU"}, userS1)
 	if err != nil || got.Data["site"] != "S1" || got.Data["organization"] != "ORG1" {
-		t.Fatalf("isi otomatis site & organisasi: %+v %v", got, err)
+		t.Fatalf("auto fill site & organization: %+v %v", got, err)
 	}
 	if _, err := e.entries.Create(e.ctx, "pole", map[string]any{"code": "X", "site": "S2"}, userS1); errs.KindOf(err) != errs.KindForbidden {
-		t.Errorf("buat di site luar akses: %v", err)
+		t.Errorf("create in a site outside access: %v", err)
 	}
 	if _, err := e.entries.Create(e.ctx, "pole", map[string]any{"code": "Y"}, nobody); errs.KindOf(err) != errs.KindInvalid {
-		t.Errorf("user tanpa site wajib memilih site (dan tidak punya akses): %v", err)
+		t.Errorf("user without sites must choose a site (and has no access): %v", err)
 	}
 	if got, err := e.entries.Create(e.ctx, "pole", map[string]any{"code": "Z", "site": "S2"}, super); err != nil || got.Data["site"] != "S2" {
-		t.Errorf("superadmin bebas: %v", err)
+		t.Errorf("superadmin is unrestricted: %v", err)
 	}
 }
 
@@ -74,16 +74,16 @@ func TestReadIsScoped(t *testing.T) {
 		t.Errorf("list: s1=%d nobody=%d super=%d", count(userS1), count(nobody), count(super))
 	}
 	if _, err := e.entries.Get(e.ctx, "pole", s2, userS1); errs.KindOf(err) != errs.KindNotFound {
-		t.Errorf("detail site lain harus tampak tidak ada: %v", err)
+		t.Errorf("detail from another site must look nonexistent: %v", err)
 	}
 	if _, err := e.entries.History(e.ctx, "pole", s2, userS1); errs.KindOf(err) != errs.KindNotFound {
-		t.Errorf("riwayat site lain: %v", err)
+		t.Errorf("history from another site: %v", err)
 	}
 	if opts, _ := e.entries.Options(e.ctx, "pole", "", nil, userS1); len(opts) != 1 {
-		t.Errorf("opsi relasi terbatas site: %+v", opts)
+		t.Errorf("relation options restricted by site: %+v", opts)
 	}
 	if _, all, _ := e.entries.All(e.ctx, "pole", userS1); len(all) != 1 {
-		t.Errorf("export terbatas site: %d", len(all))
+		t.Errorf("export restricted by site: %d", len(all))
 	}
 }
 
@@ -91,13 +91,13 @@ func TestWriteOutsideScopeLooksMissing(t *testing.T) {
 	e := newEnv()
 	s2 := withScope(t, e)
 	if _, err := e.entries.Update(e.ctx, "pole", s2, map[string]any{"code": "H", "site": "S2"}, userS1); errs.KindOf(err) != errs.KindNotFound {
-		t.Errorf("update site lain: %v", err)
+		t.Errorf("update in another site: %v", err)
 	}
 	if err := e.entries.Delete(e.ctx, "pole", s2, userS1); errs.KindOf(err) != errs.KindNotFound {
-		t.Errorf("hapus site lain: %v", err)
+		t.Errorf("delete in another site: %v", err)
 	}
 	mine, _ := e.entries.Create(e.ctx, "pole", map[string]any{"code": "MINE"}, userS1)
 	if _, err := e.entries.Update(e.ctx, "pole", mine.ID, map[string]any{"code": "MINE", "site": "S2"}, userS1); errs.KindOf(err) != errs.KindForbidden {
-		t.Errorf("memindah data ke site luar akses: %v", err)
+		t.Errorf("moving a record to a site outside access: %v", err)
 	}
 }

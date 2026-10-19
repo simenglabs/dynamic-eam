@@ -3,8 +3,8 @@ import { Alert, Card, PageHeader } from "./ui";
 import { findZone, links, permKey } from "./menu";
 import { can, getMe } from "./api";
 
-// Placeholder untuk sub menu yang belum punya halaman sendiri.
-// Buat app/<path>/page.tsx di zone untuk override (route statis menang atas catch-all).
+// Placeholder for submenus that don't have their own page yet.
+// Create app/<path>/page.tsx in the zone to override (static routes win over the catch-all).
 export async function ZonePage({ zone, params }: { zone: string; params: Promise<{ slug?: string[] }> }) {
   const z = findZone(zone);
   const { slug } = await params;
@@ -15,7 +15,7 @@ export async function ZonePage({ zone, params }: { zone: string; params: Promise
     return (
       <>
         <PageHeader crumbs={[z.label, item.label]} title={item.label} />
-        <div className="px-8 py-4"><Alert>Anda tidak punya akses ke halaman ini.</Alert></div>
+        <div className="px-8 py-4"><Alert>You don't have access to this page.</Alert></div>
       </>
     );
   return (
@@ -23,7 +23,7 @@ export async function ZonePage({ zone, params }: { zone: string; params: Promise
       <PageHeader crumbs={[z.label, item.label]} title={item.label} />
       <div className="px-8 py-4">
         <Card>
-          <p className="text-muted-foreground">Halaman {item.label} belum dibuat.</p>
+          <p className="text-muted-foreground">The {item.label} page hasn't been built yet.</p>
         </Card>
       </div>
     </>

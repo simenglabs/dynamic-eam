@@ -16,12 +16,12 @@ export default async function Components() {
           <div className="flex items-center justify-between border-b pb-4">
             <div>
               <h2 className="text-lg font-bold">Components</h2>
-              <p className="text-muted-foreground text-sm">Kumpulan field yang bisa dipakai ulang di content type (boleh repeatable).</p>
+              <p className="text-muted-foreground text-sm">Reusable field groups for content types (can be repeatable).</p>
             </div>
             <Link href="/components/new"><Button tabIndex={-1}><Plus /> New Component</Button></Link>
           </div>
           <Table>
-            <thead><tr>{["Nama", "UID", "Fields"].map((h) => <Th key={h}>{h}</Th>)}</tr></thead>
+            <thead><tr>{["Name", "UID", "Fields"].map((h) => <Th key={h}>{h}</Th>)}</tr></thead>
             <tbody>
               {comps.map((c) => (
                 <Tr key={c.uid}>
@@ -30,7 +30,7 @@ export default async function Components() {
                   <Td>{c.fields.map((f) => f.label).join(", ")}</Td>
                 </Tr>
               ))}
-              {comps.length === 0 && <tr><td colSpan={3} className="text-muted-foreground p-6 text-center">Belum ada component.</td></tr>}
+              {comps.length === 0 && <tr><td colSpan={3} className="text-muted-foreground p-6 text-center">No components yet.</td></tr>}
             </tbody>
           </Table>
         </Card>

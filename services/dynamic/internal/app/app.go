@@ -1,4 +1,4 @@
-// Package app: use case menu dinamis (schema, entri, media). Izin RBAC dicek di layer http.
+// Package app: dynamic menu use cases (schema, entries, media). RBAC permissions are checked in the http layer.
 package app
 
 import (
@@ -37,9 +37,9 @@ func catalog(ctx context.Context, d Deps) (content.Catalog, error) {
 	return cat, err
 }
 
-// indexFailed: data sudah tersimpan di Mongo tapi Elasticsearch gagal (dual-write).
-// ponytail: tidak ada retry otomatis; simpan ulang schema = rebuild index. Pakai outbox/change stream kalau perlu otomatis.
+// indexFailed: the record is saved in Mongo but Elasticsearch failed (dual-write).
+// ponytail: no automatic retry; re-saving the schema = rebuild index. Use an outbox/change stream if it must be automatic.
 func indexFailed(err error) error {
 	log.Printf("search index: %v", err)
-	return errs.Unavailable("data tersimpan, tapi index pencarian gagal diperbarui; coba simpan ulang schema untuk rebuild")
+	return errs.Unavailable("record saved, but the search index failed to update; try re-saving the schema to rebuild it")
 }

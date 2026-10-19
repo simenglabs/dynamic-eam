@@ -29,7 +29,7 @@ func (tokens) Issue(u *user.User) (string, time.Duration, error) {
 	return t, time.Hour, err
 }
 
-// fakeAuthz: izin per user ID diatur langsung di test (pengganti common.Authz yang butuh Mongo).
+// fakeAuthz: per-user-ID permissions set directly in tests (replaces common.Authz, which needs Mongo).
 type fakeAuthz struct{ perms map[string]*common.Access }
 
 func (f *fakeAuthz) Access(c *gin.Context) (*common.Access, error) {
@@ -66,7 +66,7 @@ func (f *fakeAuthz) Forget(string) {}
 type env struct {
 	r     *gin.Engine
 	authz *fakeAuthz
-	root  string // token superadmin
+	root  string // superadmin token
 }
 
 func newEnv(t *testing.T) *env {
@@ -101,7 +101,7 @@ func (e *env) login(t *testing.T, u, p string) string {
 	var res struct{ Token string }
 	json.Unmarshal(w.Body.Bytes(), &res)
 	if res.Token == "" {
-		t.Fatalf("login %s gagal: %d %s", u, w.Code, w.Body)
+		t.Fatalf("login %s failed: %d %s", u, w.Code, w.Body)
 	}
 	return res.Token
 }
@@ -116,19 +116,19 @@ func decode[T any](t *testing.T, w *httptest.ResponseRecorder) T {
 
 func TestLoginContract(t *testing.T) {
 	e := newEnv(t)
-	w := e.do("POST", "/auth/login", "", `{"username":"admin","password":"salah"}`)
+	w := e.do("POST", "/auth/login", "", `{"username":"admin","password":"wrong"}`)
 	body := decode[map[string]any](t, w)
 	if w.Code != 401 || body["error"] == "" || body["attemptsRemaining"] != float64(4) {
-		t.Errorf("password salah: %d %v", w.Code, body)
+		t.Errorf("wrong password: %d %v", w.Code, body)
 	}
 	w = e.do("POST", "/auth/login", "", `{"username":"admin"}`)
 	if w.Code != 400 {
-		t.Errorf("payload kurang: %d", w.Code)
+		t.Errorf("incomplete payload: %d", w.Code)
 	}
 	w = e.do("POST", "/auth/login", "", `{"username":"admin","password":"rootpassword"}`)
 	ok := decode[map[string]any](t, w)
 	if w.Code != 200 || ok["token"] == nil || ok["expiresIn"] != float64(3600) || ok["user"].(map[string]any)["username"] != "admin" {
-		t.Errorf("login benar: %d %v", w.Code, ok)
+		t.Errorf("correct login: %d %v", w.Code, ok)
 	}
 }
 
@@ -141,7 +141,7 @@ func TestUserJSONNeverLeaksPasswordHash(t *testing.T) {
 	users := decode[[]map[string]any](t, w)
 	for _, k := range []string{"id", "username", "displayName", "email", "roles", "isActive", "isLocked", "failedAttempts", "createdAt", "updatedAt"} {
 		if _, ok := users[0][k]; !ok {
-			t.Errorf("field %q hilang dari kontrak user", k)
+			t.Errorf("field %q missing from user contract", k)
 		}
 	}
 }
@@ -154,18 +154,18 @@ func TestUsersRequirePermission(t *testing.T) {
 	}
 	budi := e.login(t, "budi", "password1")
 	if w := e.do("GET", "/users", budi, ""); w.Code != 403 {
-		t.Errorf("tanpa izin: %d", w.Code)
+		t.Errorf("without permission: %d", w.Code)
 	}
 	if w := e.do("GET", "/users", "", ""); w.Code != 401 {
-		t.Errorf("tanpa token: %d", w.Code)
+		t.Errorf("without token: %d", w.Code)
 	}
 	id := decode[map[string]any](t, e.do("GET", "/auth/me", budi, ""))["id"].(string)
 	e.authz.perms[id] = &common.Access{UserID: id, Permissions: map[string][]string{"administration/user-management": {"read"}}}
 	if w := e.do("GET", "/users", budi, ""); w.Code != 200 {
-		t.Errorf("dengan izin read: %d", w.Code)
+		t.Errorf("with read permission: %d", w.Code)
 	}
 	if w := e.do("DELETE", "/users/x", budi, ""); w.Code != 403 {
-		t.Errorf("read tidak boleh delete: %d", w.Code)
+		t.Errorf("read must not allow delete: %d", w.Code)
 	}
 }
 
@@ -175,10 +175,10 @@ func TestErrorMapping(t *testing.T) {
 		method, path, body string
 		want               int
 	}{
-		{"POST", "/users", `{"username":"x","displayName":"X","email":"salah","roles":["user"],"password":"password1"}`, 400},
-		{"POST", "/users", `{bukan json`, 400},
-		{"GET", "/users/tidak-ada", "", 404},
-		{"POST", "/roles", `{"id":"admin","name":"Admin Lagi"}`, 409},
+		{"POST", "/users", `{"username":"x","displayName":"X","email":"wrong","roles":["user"],"password":"password1"}`, 400},
+		{"POST", "/users", `{not json`, 400},
+		{"GET", "/users/missing", "", 404},
+		{"POST", "/roles", `{"id":"admin","name":"Admin Again"}`, 409},
 		{"PUT", "/roles/superadmin", `{"name":"Hack"}`, 403},
 		{"DELETE", "/roles/superadmin", "", 403},
 	}
@@ -198,7 +198,7 @@ func TestRoleContract(t *testing.T) {
 	}
 	r := decode[map[string]any](t, e.do("GET", "/roles/teknisi", e.root, ""))
 	if r["name"] != "Teknisi" || r["system"] != false || len(r["permissions"].(map[string]any)["assets/tnd"].([]any)) != 2 {
-		t.Errorf("kontrak role: %v", r)
+		t.Errorf("role contract: %v", r)
 	}
 	if w := e.do("PUT", "/roles/teknisi", e.root, `{"name":"Teknisi 2","permissions":{}}`); w.Code != 200 {
 		t.Errorf("update role: %d %s", w.Code, w.Body)

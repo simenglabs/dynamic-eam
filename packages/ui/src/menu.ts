@@ -1,11 +1,11 @@
-// Satu menu besar = satu zone (Next.js app terpisah, basePath /<zone>) + satu service Go.
-// Sub menu = route di dalam zone. Port di sini jadi sumber tunggal untuk shell rewrites & api().
-// zone = zone pemilik halaman kalau beda dari menu induknya (mis. menu dinamis di bawah "Master"
-// yang halamannya dirender zone "dynamic"). perm = kunci RBAC (default "<zone><path>", mis. "assets/tnd").
-// superOnly = hanya superadmin (tidak diatur lewat role).
+// One top-level menu = one zone (separate Next.js app, basePath /<zone>) + one Go service.
+// Submenu = route inside the zone. Ports here are the single source for shell rewrites & api().
+// zone = zone that owns the page if different from its parent menu (e.g. a dynamic menu under "Master"
+// whose page is rendered by the "dynamic" zone). perm = RBAC key (default "<zone><path>", e.g. "assets/tnd").
+// superOnly = superadmin only (not managed via roles).
 export type Link = { label: string; path: string; zone?: string; perm?: string; superOnly?: boolean };
 export type Item = Link | { label: string; items: Link[] };
-// webPort/apiPort kosong = zone tanpa app & service sendiri: hanya wadah menu dinamis (dirender zone "dynamic").
+// No webPort/apiPort = zone without its own app & service: just a container for dynamic menus (rendered by the "dynamic" zone).
 export type ZoneDef = { zone: string; label: string; webPort?: number; apiPort?: number; items: Item[] };
 
 export const MENU: ZoneDef[] = [
@@ -13,7 +13,7 @@ export const MENU: ZoneDef[] = [
     zone: "renkon", label: "Renkon", webPort: 3001, apiPort: 8081,
     items: [
       { label: "PRK", items: [
-        { label: "PRK Unit Induk", path: "/prk" },
+        { label: "PRK Parent Unit", path: "/prk" },
         { label: "PRK Unit", path: "/prk/unit" },
         { label: "Approval PRK", path: "/prk/approval" },
       ] },
@@ -25,25 +25,25 @@ export const MENU: ZoneDef[] = [
       { label: "KHS", items: [
         { label: "KHS", path: "/khs" },
         { label: "Approval KHS", path: "/khs/approval" },
-        { label: "Template KHS", path: "/khs/template" },
-        { label: "Unit KHS", path: "/khs/master-unit" },
+        { label: "KHS Template", path: "/khs/template" },
+        { label: "KHS Unit", path: "/khs/master-unit" },
       ] },
-      { label: "Daftar Material", path: "/material" },
-      { label: "Daftar Permohonan", path: "/permohonan" },
-      { label: "Perencanaan", path: "/perencanaan" },
-      { label: "Approval Perencanaan", path: "/perencanaan/approval" },
+      { label: "Material List", path: "/material" },
+      { label: "Request List", path: "/permohonan" },
+      { label: "Planning", path: "/perencanaan" },
+      { label: "Planning Approval", path: "/perencanaan/approval" },
     ],
   },
   {
-    // Semua sub menu Assets dibuat dari dynamic (seed services/dynamic/internal/seed/assets.json).
+    // All Assets submenus come from dynamic (seed services/dynamic/internal/seed/assets.json).
     zone: "assets", label: "Assets",
     items: [],
   },
   {
     zone: "sigv2", label: "SIG", webPort: 3003, apiPort: 8083,
     items: [
-      { label: "Peta Aset CMMS", path: "/peta" },
-      { label: "Aset Belum Bertempat", path: "/belum-bertempat" },
+      { label: "CMMS Asset Map", path: "/peta" },
+      { label: "Unplaced Assets", path: "/belum-bertempat" },
     ],
   },
   {
@@ -61,7 +61,7 @@ export const MENU: ZoneDef[] = [
     ],
   },
   {
-    // Semua sub menu Master dibuat dari dynamic (seed services/dynamic/internal/seed/master.json).
+    // All Master submenus come from dynamic (seed services/dynamic/internal/seed/master.json).
     zone: "master", label: "Master",
     items: [],
   },
@@ -79,17 +79,17 @@ export const findZone = (zone: string) => MENU.find((z) => z.zone === zone)!;
 
 export const permKey = (zone: string, l: Link) => l.perm ?? zone + l.path;
 
-// Metadata content type dari service dynamic (cukup untuk menu & matriks RBAC).
+// Content type metadata from the dynamic service (enough for menus & the RBAC matrix).
 export type DynamicMenu = {
   uid: string;
   label: string;
   parent: string;
-  hidden?: boolean; // tidak tampil di sidebar (mis. profil user), tetap ada di matriks Role
+  hidden?: boolean; // hidden from the sidebar (e.g. user profile), still in the Role matrix
   workflow?: { views: { key: string; label: string; parent: string }[]; transitions: { key: string; label: string }[] } | null;
 };
 type AccessLike = { superAdmin: boolean; permissions: Record<string, string[]> };
 
-// Menu dinamis yang muncul di zone tsb: content type (parent) + view workflow (view.parent).
+// Dynamic menus shown in the zone: content types (parent) + workflow views (view.parent).
 function dynamicLinks(dynamic: DynamicMenu[], zone: string, includeHidden = false): Link[] {
   return dynamic.flatMap((ct) => [
     ...(ct.parent === zone && (includeHidden || !ct.hidden) ? [{ label: ct.label, path: `/c/${ct.uid}`, zone: "dynamic", perm: `ct/${ct.uid}` }] : []),
@@ -99,7 +99,7 @@ function dynamicLinks(dynamic: DynamicMenu[], zone: string, includeHidden = fals
   ]);
 }
 
-// Menu untuk sidebar: menu statis + menu dinamis, hanya yang boleh di-read.
+// Sidebar menu: static + dynamic menus, only those the user can read.
 export function buildMenu(dynamic: DynamicMenu[], access: AccessLike | null): ZoneDef[] {
   const canRead = (zone: string, l: Link) =>
     !!access && (access.superAdmin || (!l.superOnly && [permKey(zone, l), "*"].some((k) => access.permissions[k]?.includes("read"))));
@@ -111,8 +111,8 @@ export function buildMenu(dynamic: DynamicMenu[], access: AccessLike | null): Zo
   }).filter((z) => z.items.length > 0);
 }
 
-// Baris matriks RBAC per menu besar: sub menu statis, menu dinamis, view workflow, dan transisi workflow.
-// Transisi hanya memakai aksi "update" (= boleh menjalankan transisi).
+// RBAC matrix rows per top-level menu: static submenus, dynamic menus, workflow views and workflow transitions.
+// Transitions only use the "update" action (= allowed to run the transition).
 export function permTree(dynamic: DynamicMenu[]) {
   return MENU.map((z) => ({
     zone: z.zone,
@@ -124,13 +124,13 @@ export function permTree(dynamic: DynamicMenu[]) {
         .map((l) => ({ key: permKey(z.zone, l), label: l.label, transition: false })),
       ...dynamic
         .filter((ct) => ct.parent === z.zone)
-        .flatMap((ct) => (ct.workflow?.transitions ?? []).map((t) => ({ key: `ct/${ct.uid}/t/${t.key}`, label: `${ct.label} › Transisi: ${t.label}`, transition: true }))),
+        .flatMap((ct) => (ct.workflow?.transitions ?? []).map((t) => ({ key: `ct/${ct.uid}/t/${t.key}`, label: `${ct.label} › Transition: ${t.label}`, transition: true }))),
     ],
   })).filter((z) => z.items.length > 0);
 }
 
-// isLinkActive: menu aktif bila zone & path cocok (termasuk halaman turunan seperti detail/form)
-// DAN parameter ?view= sama persis — menu view workflow berbagi path dengan list content type-nya.
+// isLinkActive: a menu is active when zone & path match (including child pages like detail/form)
+// AND the ?view= param matches exactly — workflow view menus share the path of their content type list.
 export function isLinkActive(link: { zone: string; path: string }, here: { zone?: string; pathname: string; view: string }): boolean {
   const [base, query = ""] = link.path.split("?");
   const view = new URLSearchParams(query).get("view") ?? "";

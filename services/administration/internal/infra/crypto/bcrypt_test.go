@@ -3,13 +3,13 @@ package crypto
 import "testing"
 
 func TestBcryptRoundTrip(t *testing.T) {
-	h := Bcrypt{Cost: 4} // cost rendah supaya test cepat
+	h := Bcrypt{Cost: 4} // low cost so tests are fast
 	hash, err := h.Hash("password1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(hash) == "password1" || !h.Compare(hash, "password1") || h.Compare(hash, "salah") {
-		t.Error("hash/compare salah")
+	if string(hash) == "password1" || !h.Compare(hash, "password1") || h.Compare(hash, "wrong") {
+		t.Error("hash/compare wrong")
 	}
 }
 

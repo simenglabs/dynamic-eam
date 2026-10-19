@@ -1,4 +1,4 @@
-// Package content: bounded context menu dinamis — ContentType, Component (schema) dan Entry (data).
+// Package content: dynamic menu bounded context — ContentType, Component (schema) and Entry (record).
 package content
 
 import (
@@ -10,19 +10,19 @@ import (
 	"eam/services/common/errs"
 )
 
-// Tipe field (setara Content-Type Builder Strapi).
+// Field types (equivalent to Strapi's Content-Type Builder).
 const (
-	TText       = "text"     // string pendek, max 255
-	TLongText   = "longtext" // string panjang, max 100k
+	TText       = "text"     // short string, max 255
+	TLongText   = "longtext" // long string, max 100k
 	TNumber     = "number"
 	TBoolean    = "boolean"
 	TDate       = "date"       // YYYY-MM-DD
 	TSelect     = "select"     // enum, Options
-	TRelation   = "relation"   // id entri content type Target; Multiple = many
-	TMedia      = "media"      // id file; Multiple = banyak file
-	TComponent  = "component"  // objek sesuai Component; Repeatable = list
-	TDomain     = "domain"     // valueId dari master Domain (kode di Field.Domain); opsi & default dari domain
-	TAttributes = "attributes" // atribut sesuai classification di field relasi From (lihat attributes.go)
+	TRelation   = "relation"   // entry id of the Target content type; Multiple = many
+	TMedia      = "media"      // file id; Multiple = many files
+	TComponent  = "component"  // object matching Component; Repeatable = list
+	TDomain     = "domain"     // valueId from the Domain master (code in Field.Domain); options & default come from the domain
+	TAttributes = "attributes" // attributes of the classification in the From relation field (see attributes.go)
 )
 
 var fieldTypes = []string{TText, TLongText, TNumber, TBoolean, TDate, TSelect, TRelation, TMedia, TComponent, TDomain, TAttributes}
@@ -39,23 +39,23 @@ type Field struct {
 	Multiple   bool
 	Component  string
 	Repeatable bool
-	UniqueBy   string      // repeatable component: field di component yang nilainya harus unik dalam list
-	AutoFill   *AutoFill   // isi otomatis (relasi/profil/hari ini/user)
-	Domain     string      // TDomain: kode domain (mis. "PRIORITY")
-	Where      []Condition // TRelation: filter pilihan (lihat where.go)
-	From       string      // TAttributes: field relasi ke classification
+	UniqueBy   string      // repeatable component: component field whose value must be unique within the list
+	AutoFill   *AutoFill   // auto fill (relation/profile/today/user)
+	Domain     string      // TDomain: domain code (e.g. "PRIORITY")
+	Where      []Condition // TRelation: option filter (see where.go)
+	From       string      // TAttributes: relation field to classification
 }
 
 type ContentType struct {
 	UID          string
 	Label        string
-	Parent       string // zone tempat menu muncul di sidebar
-	Hidden       bool   // true = tidak tampil di sidebar (mis. profil user), izin tetap diatur di Role
-	ScopeField   string // field relasi ke Sites: data dibatasi per site akses user (kosong = tidak dibatasi)
+	Parent       string // zone where the menu appears in the sidebar
+	Hidden       bool   // true = hidden from the sidebar (e.g. user profile), permissions still set in Role
+	ScopeField   string // relation field to Sites: records restricted to the user's accessible sites (empty = unrestricted)
 	DisplayField string
 	Fields       []Field
-	Layout       *Layout   // nil = layout default
-	Workflow     *Workflow // nil = tanpa status
+	Layout       *Layout   // nil = default layout
+	Workflow     *Workflow // nil = no status
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 }
@@ -68,13 +68,13 @@ type Component struct {
 	UpdatedAt time.Time
 }
 
-// Catalog: schema lain yang sudah ada, untuk validasi relation/component.
+// Catalog: other existing schemas, for relation/component validation.
 type Catalog struct {
 	ContentTypes map[string]bool
 	Components   map[string]Component
 }
 
-// PermKey: kunci RBAC menu dinamis (diatur di Role Management).
+// PermKey: RBAC key of a dynamic menu (set in Role Management).
 func PermKey(uid string) string { return "ct/" + uid }
 
 var (
@@ -85,10 +85,10 @@ var (
 
 func validateHeader(uid, label string) error {
 	if !uidRe.MatchString(uid) {
-		return errs.Invalid("UID %q tidak valid (huruf kecil, angka, '-', 2-48 karakter)", uid)
+		return errs.Invalid("UID %q is invalid (lowercase letters, digits, '-', 2-48 characters)", uid)
 	}
 	if label == "" {
-		return errs.Invalid("label wajib diisi")
+		return errs.Invalid("label is required")
 	}
 	return nil
 }
@@ -98,9 +98,9 @@ func (ct *ContentType) Validate(cat Catalog) error {
 		return err
 	}
 	if ct.Parent == "" {
-		return errs.Invalid("menu induk wajib dipilih")
+		return errs.Invalid("parent menu is required")
 	}
-	types := map[string]bool{ct.UID: true} // relation ke diri sendiri boleh
+	types := map[string]bool{ct.UID: true} // self relation is allowed
 	for k, v := range cat.ContentTypes {
 		types[k] = v
 	}
@@ -140,11 +140,11 @@ func (c *Component) Validate(cat Catalog) error {
 	if err := validateFields(c.Fields, Catalog{cat.ContentTypes, comps}, true); err != nil {
 		return err
 	}
-	// Cegah siklus A -> B -> A (validasi entri akan rekursi tanpa akhir).
+	// Prevent cycles A -> B -> A (entry validation would recurse forever).
 	var visit func(uid string, path []string) error
 	visit = func(uid string, path []string) error {
 		if slices.Contains(path, uid) {
-			return errs.Invalid("component bersiklus: %v", append(path, uid))
+			return errs.Invalid("cyclic component: %v", append(path, uid))
 		}
 		for _, f := range comps[uid].Fields {
 			if f.Type == TComponent {
@@ -160,25 +160,25 @@ func (c *Component) Validate(cat Catalog) error {
 
 func validateFields(fields []Field, cat Catalog, inComponent bool) error {
 	if len(fields) == 0 {
-		return errs.Invalid("minimal satu field")
+		return errs.Invalid("at least one field is required")
 	}
 	seen := map[string]bool{}
 	for _, f := range fields {
 		if !fieldRe.MatchString(f.Name) || slices.Contains(reservedFields, f.Name) {
-			return errs.Invalid("nama field %q tidak valid (camelCase, bukan %v)", f.Name, reservedFields)
+			return errs.Invalid("field name %q is invalid (camelCase, not %v)", f.Name, reservedFields)
 		}
 		if seen[f.Name] {
-			return errs.Invalid("nama field %q duplikat", f.Name)
+			return errs.Invalid("duplicate field name %q", f.Name)
 		}
 		seen[f.Name] = true
 		if f.Label == "" {
-			return errs.Invalid("label field %q wajib diisi", f.Name)
+			return errs.Invalid("field label %q is required", f.Name)
 		}
 		if !slices.Contains(fieldTypes, f.Type) {
-			return errs.Invalid("tipe field %q tidak dikenal: %q", f.Name, f.Type)
+			return errs.Invalid("field %q has unknown type: %q", f.Name, f.Type)
 		}
 		if f.Unique && (inComponent || (f.Type != TText && f.Type != TNumber)) {
-			return errs.Invalid("field %q: unique hanya untuk text/number di level atas", f.Name)
+			return errs.Invalid("field %q: unique is only for top-level text/number", f.Name)
 		}
 		if err := validateWhere(f, fields, inComponent); err != nil {
 			return err
@@ -190,28 +190,28 @@ func validateFields(fields []Field, cat Catalog, inComponent bool) error {
 			}
 		case TSelect:
 			if len(f.Options) == 0 {
-				return errs.Invalid("field %q: select butuh minimal satu opsi", f.Name)
+				return errs.Invalid("field %q: select needs at least one option", f.Name)
 			}
 		case TRelation:
 			if !cat.ContentTypes[f.Target] {
-				return errs.Invalid("field %q: target relation %q tidak ada", f.Name, f.Target)
+				return errs.Invalid("field %q: relation target %q does not exist", f.Name, f.Target)
 			}
 		case TComponent:
 			comp, ok := cat.Components[f.Component]
 			if !ok {
-				return errs.Invalid("field %q: component %q tidak ada", f.Name, f.Component)
+				return errs.Invalid("field %q: component %q does not exist", f.Name, f.Component)
 			}
 			if f.UniqueBy != "" && (!f.Repeatable || !slices.ContainsFunc(comp.Fields, func(x Field) bool { return x.Name == f.UniqueBy })) {
-				return errs.Invalid("field %q: unik-berdasarkan hanya untuk component repeatable dan harus field milik component", f.Name)
+				return errs.Invalid("field %q: unique-by is only for repeatable components and must be a field of the component", f.Name)
 			}
 		case TDomain:
 			if strings.TrimSpace(f.Domain) == "" {
-				return errs.Invalid("field %q: kode domain wajib diisi", f.Name)
+				return errs.Invalid("field %q: domain code is required", f.Name)
 			}
 		}
 		if f.Default != nil {
 			if _, err := coerce(f, f.Default, nil); err != nil {
-				return errs.Invalid("field %q: default tidak valid: %v", f.Name, err)
+				return errs.Invalid("field %q: default is invalid: %v", f.Name, err)
 			}
 		}
 	}
@@ -228,7 +228,7 @@ func (ct *ContentType) UniqueFields() []string {
 	return out
 }
 
-// References: content type ini punya relation ke target (selain dirinya sendiri)?
+// References: does this content type have a relation to target (other than itself)?
 func (ct *ContentType) References(target string) bool {
 	return target != ct.UID && slices.ContainsFunc(ct.Fields, func(f Field) bool { return f.Type == TRelation && f.Target == target })
 }

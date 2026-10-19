@@ -17,7 +17,7 @@ import (
 
 func setup(t *testing.T) *Store {
 	if os.Getenv("MONGO_URI") == "" {
-		t.Skip("MONGO_URI kosong")
+		t.Skip("MONGO_URI is empty")
 	}
 	t.Setenv("MONGO_DB", "eam_test_dynamic")
 	db := common.Mongo()
@@ -48,7 +48,7 @@ func TestSchemaRoundTrip(t *testing.T) {
 		Workflow: &content.Workflow{States: []content.State{{Key: "draft", Label: "Draft", Color: "neutral", Editable: true}}, Initial: "draft",
 			Transitions: []content.Transition{{Key: "x", Label: "X", From: []string{"draft"}, To: "draft",
 				Fields: []content.Field{{Name: "jenis", Label: "Jenis", Type: content.TSelect, Options: []string{"BA"}, Required: true}}}},
-			Views:       []content.View{{Key: "v", Label: "V", Parent: "assets", States: []string{"draft"}}}},
+			Views: []content.View{{Key: "v", Label: "V", Parent: "assets", States: []string{"draft"}}}},
 	}
 	if err := s.SaveContentType(ctx, ct); err != nil {
 		t.Fatal(err)
@@ -58,25 +58,25 @@ func TestSchemaRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	if af := got.Fields[4].AutoFill; af == nil || af.Source != "relation" || af.From != "loc" || af.Field != "name" || !af.Lock {
-		t.Errorf("autoFill hilang: %+v", got.Fields[4].AutoFill)
+		t.Errorf("autoFill missing: %+v", got.Fields[4].AutoFill)
 	}
 	if af := got.Fields[5].AutoFill; af == nil || af.Pattern != "A-{seq:3}" {
-		t.Errorf("pola kode hilang: %+v", af)
+		t.Errorf("code pattern missing: %+v", af)
 	}
 	if w := got.Fields[6].Where; len(w) != 1 || w[0].Field != "site" || w[0].Value != "{code}" {
-		t.Errorf("where hilang: %+v", w)
+		t.Errorf("where missing: %+v", w)
 	}
 	if got.Fields[8].From != "cls" {
-		t.Errorf("from hilang: %+v", got.Fields[8])
+		t.Errorf("from missing: %+v", got.Fields[8])
 	}
 	if tf := got.Workflow.Transitions[0].Fields; len(tf) != 1 || tf[0].Name != "jenis" || !tf[0].Required || tf[0].Options[0] != "BA" {
-		t.Errorf("isian transisi hilang: %+v", tf)
+		t.Errorf("transition input missing: %+v", tf)
 	}
 	if !got.Hidden || got.ScopeField != "plate" {
-		t.Errorf("hidden/scopeField hilang: %v %q", got.Hidden, got.ScopeField)
+		t.Errorf("hidden/scopeField missing: %v %q", got.Hidden, got.ScopeField)
 	}
 	if got.Fields[2].UniqueBy != "street" || got.Fields[3].Domain != "PRIORITY" {
-		t.Errorf("uniqueBy/domain hilang: %+v %+v", got.Fields[2], got.Fields[3])
+		t.Errorf("uniqueBy/domain missing: %+v %+v", got.Fields[2], got.Fields[3])
 	}
 	if got.Fields[1].Default != "A" || !got.Fields[2].Repeatable || got.Layout.Sections[0].Rows[0].Fields[1] != "" ||
 		got.Workflow.Views[0].States[0] != "draft" || !got.Workflow.States[0].Editable || !got.CreatedAt.Equal(t0) {
@@ -92,7 +92,7 @@ func TestSchemaRoundTrip(t *testing.T) {
 	}
 	s.DeleteContentType(ctx, "vehicle")
 	if list, _ := s.ListContentTypes(ctx); len(list) != 0 {
-		t.Error("harus terhapus")
+		t.Error("must be deleted")
 	}
 }
 
@@ -115,7 +115,7 @@ func TestEntriesRoundTripAndUnique(t *testing.T) {
 		t.Errorf("round trip: %+v", got)
 	}
 	if _, ok := got.Data["_id"]; ok {
-		t.Error("metadata tidak boleh bocor ke Data")
+		t.Error("metadata must not leak into Data")
 	}
 
 	if err := s.SyncUnique(ctx, "vehicle", []string{"plate"}); err != nil {
@@ -129,10 +129,10 @@ func TestEntriesRoundTripAndUnique(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := s.Save(ctx, "vehicle", dup); err != nil {
-		t.Errorf("unique dicabut: %v", err)
+		t.Errorf("unique removed: %v", err)
 	}
 	if err := s.SyncUnique(ctx, "vehicle", []string{"plate"}); errs.KindOf(err) != errs.KindConflict {
-		t.Errorf("unique dengan data duplikat: %v", err)
+		t.Errorf("unique with duplicate records: %v", err)
 	}
 	if n, _ := s.CountExisting(ctx, "vehicle", []string{"e1", "e2", "x"}); n != 2 {
 		t.Errorf("CountExisting = %d", n)
@@ -161,16 +161,16 @@ func TestSoftDeleteVersionAndRevisions(t *testing.T) {
 		t.Fatalf("soft delete round trip: %+v %v", got, err)
 	}
 	if all, _ := s.All(ctx, "vehicle"); len(all) != 0 {
-		t.Error("All harus mengabaikan entri terhapus")
+		t.Error("All must ignore deleted entries")
 	}
 	if n, _ := s.CountExisting(ctx, "vehicle", []string{"e1"}); n != 0 {
-		t.Error("CountExisting harus mengabaikan entri terhapus")
+		t.Error("CountExisting must ignore deleted entries")
 	}
 	if err := s.Save(ctx, "vehicle", &content.Entry{ID: "e2", CreatedAt: t0, Data: map[string]any{"plate": "L 1"}}); err != nil {
-		t.Errorf("unique hanya antar entri aktif: %v", err)
+		t.Errorf("unique only among active entries: %v", err)
 	}
 	if err := s.Save(ctx, "vehicle", &content.Entry{ID: "e3", CreatedAt: t0, Data: map[string]any{"plate": "L 1"}}); errs.KindOf(err) != errs.KindConflict {
-		t.Errorf("unique antar entri aktif tetap berlaku: %v", err)
+		t.Errorf("unique among active entries still applies: %v", err)
 	}
 
 	for v, action := range []string{"create", "delete"} {
@@ -187,10 +187,10 @@ func TestSoftDeleteVersionAndRevisions(t *testing.T) {
 		t.Errorf("revisions: %+v %v", revs, err)
 	}
 	if l, _ := revs[0].Data["files"].([]any); revs[0].Transition != "submit" || revs[0].Data["jenis"] != "BA" || len(l) != 1 {
-		t.Errorf("isian transisi di revisi: %+v", revs[0])
+		t.Errorf("transition input in revision: %+v", revs[0])
 	}
 	if other, _ := s.Revisions(ctx, "vehicle", "e2"); len(other) != 0 {
-		t.Error("revisi entri lain tidak boleh ikut")
+		t.Error("revisions of other entries must not be included")
 	}
 }
 
@@ -203,7 +203,7 @@ func TestFindOneIgnoresDeleted(t *testing.T) {
 		t.Errorf("FindOne: %+v %v", e, err)
 	}
 	if _, err := s.FindOne(ctx, "d", "domainCode", "NOPE"); errs.KindOf(err) != errs.KindNotFound {
-		t.Errorf("tidak ada: %v", err)
+		t.Errorf("missing: %v", err)
 	}
 }
 
@@ -218,7 +218,7 @@ func TestLegacyUniqueIndexReplaced(t *testing.T) {
 	specs, _ := col.Indexes().ListSpecifications(ctx)
 	for _, sp := range specs {
 		if sp.Name == "uniq_plate" {
-			t.Error("index unique lama (tanpa filter isDeleted) harus diganti")
+			t.Error("the old unique index (without the isDeleted filter) must be replaced")
 		}
 	}
 }
@@ -242,10 +242,10 @@ func TestNextSequence(t *testing.T) {
 	s := setup(t)
 	for want := int64(1); want <= 3; want++ {
 		if n, err := s.NextSequence(t.Context(), "asset/code/TGD-"); err != nil || n != want {
-			t.Fatalf("seq = %d %v, mau %d", n, err, want)
+			t.Fatalf("seq = %d %v, want %d", n, err, want)
 		}
 	}
 	if n, _ := s.NextSequence(t.Context(), "asset/code/TRF-"); n != 1 {
-		t.Errorf("kunci lain mulai 1: %d", n)
+		t.Errorf("another key starts at 1: %d", n)
 	}
 }

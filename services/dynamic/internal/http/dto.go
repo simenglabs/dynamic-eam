@@ -7,7 +7,7 @@ import (
 	"eam/services/dynamic/internal/domain/content"
 )
 
-// DTO JSON = kontrak frontend (apps/dynamic/app/_lib/types.ts).
+// JSON DTOs = frontend contract (apps/dynamic/app/_lib/types.ts).
 
 type fieldDTO struct {
 	Name       string         `json:"name"`
@@ -187,7 +187,7 @@ func toComponentDTO(c *content.Component) componentDTO {
 	return componentDTO{c.UID, c.Label, mapAll(c.Fields, toFieldDTO), c.CreatedAt, c.UpdatedAt}
 }
 
-// Entri = field data di level atas + metadata (nama metadata dicadangkan di domain).
+// Entry = data fields at the top level + metadata (metadata names are reserved in the domain).
 func toEntryDTO(e *content.Entry) map[string]any {
 	out := make(map[string]any, len(e.Data)+8)
 	for k, v := range e.Data {
@@ -204,14 +204,14 @@ func toEntryDTO(e *content.Entry) map[string]any {
 	return out
 }
 
-// SeedEntries: data bawaan satu content type; Key = field pencocok (data dengan nilai Key yang sama tidak dibuat ulang).
+// SeedEntries: built-in records of one content type; Key = matching field (records with the same Key value are not recreated).
 type SeedEntries struct {
 	UID  string           `json:"uid"`
 	Key  string           `json:"key"`
 	Rows []map[string]any `json:"rows"`
 }
 
-// DecodeSeed membaca file seed (format JSON sama dengan API) menjadi domain object + data bawaan.
+// DecodeSeed reads a seed file (same JSON format as the API) into a domain object + built-in records.
 func DecodeSeed(b []byte) ([]*content.Component, []*content.ContentType, []SeedEntries, error) {
 	var in struct {
 		Components   []componentDTO   `json:"components"`

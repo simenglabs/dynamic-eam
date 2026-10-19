@@ -13,7 +13,7 @@ export default async function EditRole({ params }: { params: Promise<{ id: strin
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) notFound();
     if (e instanceof ApiError && e.status === 403)
-      return (<><PageHeader crumbs={["Administration", "Role"]} title="Role" /><div className="px-8 py-4"><Alert>Anda tidak punya akses.</Alert></div></>);
+      return (<><PageHeader crumbs={["Administration", "Role"]} title="Role" /><div className="px-8 py-4"><Alert>You don't have access.</Alert></div></>);
     throw e;
   }
   return (

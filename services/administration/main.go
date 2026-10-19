@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"eam/services/administration/internal/app"
+	adminhttp "eam/services/administration/internal/http"
 	"eam/services/administration/internal/infra/crypto"
 	"eam/services/administration/internal/infra/mongo"
-	adminhttp "eam/services/administration/internal/http"
 	"eam/services/common"
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
@@ -36,7 +36,7 @@ func main() {
 		log.Fatal(err)
 	}
 	if pw != "" {
-		log.Printf("superadmin awal: username=admin password=%s (set ADMIN_PASSWORD untuk password tetap)", pw)
+		log.Printf("initial superadmin: username=admin password=%s (set ADMIN_PASSWORD for a fixed password)", pw)
 	}
 
 	r := gin.Default()

@@ -20,8 +20,8 @@ const ITEM = "flex h-10 items-center gap-3 rounded-xl px-3 text-[0.93rem] font-m
 const ACTIVE = "data-[active=true]:bg-sidebar-accent data-[active=true]:text-sidebar-accent-foreground data-[active=true]:font-semibold";
 const SUB = "flex h-9 items-center rounded-lg px-3 text-sm text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-900 " + ACTIVE;
 
-// zone = zone app yang sedang render (undefined = shell). Link dalam zone sama → NextLink (soft nav);
-// beda zone → <a> (hard nav, beda Next.js app).
+// zone = the zone app currently rendering (undefined = shell). Link in the same zone → NextLink (soft nav);
+// other zone → <a> (hard nav, different Next.js app).
 export function Sidebar({ zone, menu }: { zone?: string; menu: ZoneDef[] }) {
   const pathname = usePathname();
   const view = useSearchParams().get("view") ?? "";
@@ -41,7 +41,7 @@ export function Sidebar({ zone, menu }: { zone?: string; menu: ZoneDef[] }) {
       <a href="/dashboard" aria-label="EAM — Dashboard" className="px-6 pt-6 pb-5">
         <Logo />
       </a>
-      <nav aria-label="Menu utama" className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 pb-6">
+      <nav aria-label="Main menu" className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 pb-6">
         <a href="/dashboard" data-active={!zone && pathname === "/dashboard"} className={`${ITEM} ${ACTIVE}`}>
           <House className="size-[1.15rem]" /> Dashboard
         </a>

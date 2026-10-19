@@ -7,7 +7,7 @@ import (
 )
 
 func TestDisplayFieldAcceptsNameOrTemplate(t *testing.T) {
-	for _, d := range []string{"plate", "{plate}", "{plate} - {status}", "Kendaraan {plate} ({since})", "{location}"} {
+	for _, d := range []string{"plate", "{plate}", "{plate} - {status}", "Vehicle {plate} ({since})", "{location}"} {
 		ct := vehicle()
 		ct.DisplayField = d
 		if err := ct.Validate(catalog()); err != nil {
@@ -28,12 +28,12 @@ func TestDisplayFieldRejects(t *testing.T) {
 
 func TestDisplayLabel(t *testing.T) {
 	ct := vehicle()
-	data := map[string]any{"plate": "L 1", "status": "Aktif", "year": 2021.0}
+	data := map[string]any{"plate": "L 1", "status": "Active", "year": 2021.0}
 	cases := map[string]string{
 		"plate":              "L 1",
-		"{plate} - {status}": "L 1 - Aktif",
+		"{plate} - {status}": "L 1 - Active",
 		"{plate} ({since})":  "L 1 ()", // empty field = empty string
-		"Kendaraan #{plate}": "Kendaraan #L 1",
+		"Vehicle #{plate}":   "Vehicle #L 1",
 	}
 	for tpl, want := range cases {
 		ct.DisplayField = tpl

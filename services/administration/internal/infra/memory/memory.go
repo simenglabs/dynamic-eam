@@ -1,5 +1,5 @@
-// Package memory: adapter in-memory untuk user.Repository & role.Repository.
-// Dipakai test (app, http) dan bisa untuk dev tanpa Mongo. Kontrak sama dengan infra/mongo.
+// Package memory: in-memory adapter for user.Repository & role.Repository.
+// Used by tests (app, http) and usable for dev without Mongo. Same contract as infra/mongo.
 package memory
 
 import (
@@ -66,7 +66,7 @@ func (r *Users) Insert(_ context.Context, u *user.User) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.dup(u) {
-		return errs.Conflict("username atau email sudah dipakai")
+		return errs.Conflict("username or email is already taken")
 	}
 	r.m[u.ID] = *u
 	return nil
@@ -76,7 +76,7 @@ func (r *Users) Update(_ context.Context, u *user.User) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.dup(u) {
-		return errs.Conflict("email sudah dipakai")
+		return errs.Conflict("email is already taken")
 	}
 	r.m[u.ID] = *u
 	return nil
@@ -152,7 +152,7 @@ func (r *Roles) Insert(_ context.Context, x *role.Role) error {
 	defer r.mu.Unlock()
 	for _, o := range r.m {
 		if o.ID == x.ID || o.Name == x.Name {
-			return errs.Conflict("ID atau nama role sudah dipakai")
+			return errs.Conflict("role ID or name is already taken")
 		}
 	}
 	r.m[x.ID] = *x

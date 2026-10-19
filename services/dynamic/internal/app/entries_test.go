@@ -16,11 +16,11 @@ func TestCreateEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got.Data["status"] != "Aktif" || got.CreatedBy != "u1" || !got.CreatedAt.Equal(t0) {
-		t.Errorf("entri: %+v", got)
+		t.Errorf("entry: %+v", got)
 	}
 	page, _ := e.entries.List(e.ctx, "vehicle", Query{Q: "l 1", Page: 1, Size: 10}, u1)
 	if page.Total != 1 {
-		t.Errorf("entri harus ter-index & bisa dicari: %+v", page)
+		t.Errorf("entry must be indexed & searchable: %+v", page)
 	}
 }
 
@@ -30,7 +30,7 @@ func TestCreateEntryChecksReferences(t *testing.T) {
 	cases := map[string]map[string]any{
 		"relation palsu": {"plate": "L 2", "location": "palsu"},
 		"media palsu":    {"plate": "L 3", "photos": []any{"palsu"}},
-		"select salah":   {"plate": "L 4", "status": "Hilang"},
+		"wrong select":   {"plate": "L 4", "status": "Hilang"},
 	}
 	for name, data := range cases {
 		if _, err := e.entries.Create(e.ctx, "vehicle", data, u1); errs.KindOf(err) != errs.KindInvalid {
@@ -38,7 +38,7 @@ func TestCreateEntryChecksReferences(t *testing.T) {
 		}
 	}
 	if _, err := e.entries.Create(e.ctx, "nope", map[string]any{}, u1); errs.KindOf(err) != errs.KindNotFound {
-		t.Errorf("content type tidak ada: %v", err)
+		t.Errorf("missing content type: %v", err)
 	}
 }
 
@@ -46,7 +46,7 @@ func TestUniqueConflict(t *testing.T) {
 	e := newEnv()
 	e.seed()
 	if _, err := e.entries.Create(e.ctx, "location", map[string]any{"name": "Gudang"}, u1); errs.KindOf(err) != errs.KindConflict {
-		t.Errorf("nama unik duplikat: %v", err)
+		t.Errorf("duplicate unique name: %v", err)
 	}
 }
 
@@ -61,7 +61,7 @@ func TestUpdateEntryKeepsCreatedMeta(t *testing.T) {
 		t.Errorf("update: %+v", got)
 	}
 	if _, err := e.entries.Update(e.ctx, "location", "nope", map[string]any{"name": "x"}, u2); errs.KindOf(err) != errs.KindNotFound {
-		t.Errorf("update tidak ada: %v", err)
+		t.Errorf("update of missing record: %v", err)
 	}
 }
 
@@ -82,10 +82,10 @@ func TestDeleteEntry(t *testing.T) {
 		t.Fatal(err)
 	}
 	if _, err := e.entries.Get(e.ctx, "location", loc, u1); errs.KindOf(err) != errs.KindNotFound {
-		t.Errorf("harus terhapus: %v", err)
+		t.Errorf("must be deleted: %v", err)
 	}
 	if p, _ := e.entries.List(e.ctx, "location", Query{Page: 1, Size: 10}, u1); p.Total != 0 {
-		t.Error("harus terhapus dari index")
+		t.Error("must be removed from the index")
 	}
 }
 

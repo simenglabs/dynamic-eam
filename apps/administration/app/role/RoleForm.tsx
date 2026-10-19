@@ -21,7 +21,7 @@ export function RoleForm({ role, tree, canSave, canDelete }: { role?: Role; tree
   const [error, setError] = useState<string>();
   const [pending, start] = useTransition();
   const [q, setQ] = useState("");
-  const [opened, setOpened] = useState<Set<string>>(new Set()); // menu besar yang dibuka
+  const [opened, setOpened] = useState<Set<string>>(new Set()); // expanded top-level menus
   const toggleZone = (z: string) => setOpened((s) => { const n = new Set(s); if (n.has(z)) n.delete(z); else n.add(z); return n; });
   const needle = q.trim().toLowerCase();
   const zones = tree
@@ -36,7 +36,7 @@ export function RoleForm({ role, tree, canSave, canDelete }: { role?: Role; tree
         const cur = new Set(next[k] ?? []);
         if (on) cur.add(a);
         else cur.delete(a);
-        // read wajib ada kalau aksi lain dicentang; uncheck read = cabut semua. Kunci transisi (".../t/...") cukup "update".
+        // read is required when another action is checked; unchecking read revokes all. Transition keys (".../t/...") only need "update".
         if (on && a !== "read" && !k.includes("/t/")) cur.add("read");
         if (!on && a === "read") cur.clear();
         next[k] = ACTIONS.filter((x) => cur.has(x));
@@ -50,11 +50,11 @@ export function RoleForm({ role, tree, canSave, canDelete }: { role?: Role; tree
       setError((await saveRole(role?.id, JSON.stringify(body)))?.error);
     });
   const remove = async () => {
-    if (!role || !(await confirmDialog({ title: `Hapus role ${role.name}?`, message: "Role yang masih dipakai user tidak bisa dihapus.", confirmText: "Hapus", danger: true }))) return;
+    if (!role || !(await confirmDialog({ title: `Delete role ${role.name}?`, message: "A role still assigned to users can't be deleted.", confirmText: "Delete", danger: true }))) return;
     start(async () => setError((await deleteRole(role.id))?.error));
   };
 
-  // semua aksi satu baris (transisi workflow: hanya update)
+  // all actions of one row (workflow transitions: update only)
   const rowActions = (key: string) => (key.includes("/t/") ? (["update"] as Action[]) : [...ACTIONS]);
   const allBox = (keys: string[], label: string) => {
     const pairs = keys.flatMap((k) => rowActions(k).map((a) => [k, a] as const));
@@ -94,21 +94,21 @@ export function RoleForm({ role, tree, canSave, canDelete }: { role?: Role; tree
       </div>
       <div className="flex flex-col gap-4 px-8 py-4">
         {error && <Alert>{error}</Alert>}
-        {role?.system && <Alert className="border-primary/30 bg-accent text-foreground">Role sistem: semua akses, tidak bisa diubah.</Alert>}
+        {role?.system && <Alert className="border-primary/30 bg-accent text-foreground">System role: full access, cannot be changed.</Alert>}
         <Card>
           <h2 className="border-b pb-4 text-lg font-bold">Role</h2>
           <div className="grid gap-x-4 gap-y-5 md:grid-cols-3">
-            <Field label="Nama" required>
+            <Field label="Name" required>
               <Input value={name} required disabled={readOnly} onChange={(e) => { setName(e.target.value); if (!idTouched) setId(slug(e.target.value)); }} />
             </Field>
             <Field label="ID" required>
               {role ? (
                 <p className="border-b px-3 py-2 font-normal">{role.id}</p>
               ) : (
-                <Input value={id} required pattern="[a-z][a-z0-9-]{1,47}" title="huruf kecil, angka, '-'" onChange={(e) => { setId(e.target.value); setIdTouched(true); }} />
+                <Input value={id} required pattern="[a-z][a-z0-9-]{1,47}" title="lowercase letters, digits, '-'" onChange={(e) => { setId(e.target.value); setIdTouched(true); }} />
               )}
             </Field>
-            <Field label="Deskripsi" optional>
+            <Field label="Description" optional>
               <Input value={description} disabled={readOnly} onChange={(e) => setDescription(e.target.value)} />
             </Field>
           </div>
@@ -118,30 +118,30 @@ export function RoleForm({ role, tree, canSave, canDelete }: { role?: Role; tree
           <Card>
             <div className="flex flex-wrap items-end gap-3 border-b pb-4">
               <div className="mr-auto">
-                <h2 className="text-lg font-bold">Hak Akses Menu</h2>
-                <p className="text-muted-foreground text-sm">Klik nama menu besar untuk melihat sub menunya. Centang di baris menu besar = semua sub menunya. Aksi selain read otomatis menambah read.</p>
+                <h2 className="text-lg font-bold">Menu permissions</h2>
+                <p className="text-muted-foreground text-sm">Click a top-level menu name to see its submenus. Checking a top-level menu row = all of its submenus. Actions other than read automatically add read.</p>
               </div>
               <label className="relative">
                 <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-slate-400" />
-                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Cari menu…" aria-label="Cari menu" className="w-56 pl-8" />
+                <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search menu…" aria-label="Search menu" className="w-56 pl-8" />
               </label>
-              <Button type="button" variant="ghost" onClick={() => setOpened(new Set(tree.map((z) => z.zone)))}>Buka semua</Button>
-              <Button type="button" variant="ghost" onClick={() => setOpened(new Set())}>Tutup semua</Button>
+              <Button type="button" variant="ghost" onClick={() => setOpened(new Set(tree.map((z) => z.zone)))}>Expand all</Button>
+              <Button type="button" variant="ghost" onClick={() => setOpened(new Set())}>Collapse all</Button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-base">
                 <thead>
                   <tr>
                     <th className="sticky top-0 z-10 bg-slate-200 p-2.5 text-left">Menu</th>
-                    <th className="sticky top-0 z-10 w-20 bg-slate-200 p-2.5">Semua</th>
+                    <th className="sticky top-0 z-10 w-20 bg-slate-200 p-2.5">All</th>
                     {ACTIONS.map((a) => <th key={a} className="sticky top-0 z-10 w-24 bg-slate-200 p-2.5 capitalize">{a}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="border-b bg-amber-50">
-                    <td className="p-2.5 font-bold">Semua menu <span className="text-muted-foreground font-normal">(termasuk menu baru)</span></td>
-                    <td className="text-center">{allBox(["*"], "semua menu semua aksi")}</td>
-                    {ACTIONS.map((a) => <td key={a} className="text-center">{box(["*"], a, `semua menu ${a}`)}</td>)}
+                    <td className="p-2.5 font-bold">All menus <span className="text-muted-foreground font-normal">(including new ones)</span></td>
+                    <td className="text-center">{allBox(["*"], "all menus all actions")}</td>
+                    {ACTIONS.map((a) => <td key={a} className="text-center">{box(["*"], a, `all menus ${a}`)}</td>)}
                   </tr>
                   {zones.map((z) => {
                     const keys = z.items.filter((i) => !i.transition).map((i) => i.key);
@@ -153,10 +153,10 @@ export function RoleForm({ role, tree, canSave, canDelete }: { role?: Role; tree
                           <button type="button" onClick={() => toggleZone(z.zone)} aria-expanded={isOpen} className="flex items-center gap-2 font-bold">
                             {isOpen ? <ChevronDown className="size-4 text-slate-400" /> : <ChevronRight className="size-4 text-slate-400" />}
                             {z.label}
-                            <Badge color={granted ? "green" : "neutral"} className="font-normal">{granted}/{z.items.length} diberi akses</Badge>
+                            <Badge color={granted ? "green" : "neutral"} className="font-normal">{granted}/{z.items.length} granted</Badge>
                           </button>
                         </td>
-                        <td className="text-center">{allBox(z.items.map((i) => i.key), `${z.label} semua aksi`)}</td>
+                        <td className="text-center">{allBox(z.items.map((i) => i.key), `${z.label} all actions`)}</td>
                         {ACTIONS.map((a) => <td key={a} className="text-center">{box(keys, a, `${z.label} ${a}`)}</td>)}
                       </tr>,
                       ...(isOpen ? z.items : []).map((i) => (
@@ -164,10 +164,10 @@ export function RoleForm({ role, tree, canSave, canDelete }: { role?: Role; tree
                           <td className="p-2.5 pl-12">
                             {i.label} <span className="text-muted-foreground text-xs">{i.key}</span>
                           </td>
-                          <td className="text-center">{allBox([i.key], `${i.label} semua aksi`)}</td>
+                          <td className="text-center">{allBox([i.key], `${i.label} all actions`)}</td>
                           {ACTIONS.map((a) => (
                             <td key={a} className="text-center">
-                              {/* transisi workflow hanya punya satu izin: update (= boleh menjalankan) */}
+                              {/* workflow transitions have a single permission: update (= allowed to run) */}
                               {!i.transition || a === "update" ? box([i.key], a, `${i.label} ${a}`) : null}
                             </td>
                           ))}

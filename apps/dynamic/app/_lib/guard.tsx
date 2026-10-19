@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { Alert, ApiError, PageHeader } from "@eam/ui";
 
-// 403 -> pesan akses ditolak, 404 -> not found, 502/503 (mis. Elasticsearch mati) -> pesan layanan,
-// lainnya dilempar ke error boundary.
+// 403 -> access denied message, 404 -> not found, 502/503 (e.g. Elasticsearch down) -> service message,
+// anything else is thrown to the error boundary.
 export async function guard<T>(p: Promise<T>, crumbs: string[]): Promise<T | React.ReactElement> {
   try {
     return await p;
@@ -12,7 +12,7 @@ export async function guard<T>(p: Promise<T>, crumbs: string[]): Promise<T | Rea
       return (
         <>
           <PageHeader crumbs={crumbs} title={crumbs.at(-1)!} />
-          <div className="px-8 py-4"><Alert>Anda tidak punya akses ke halaman ini.</Alert></div>
+          <div className="px-8 py-4"><Alert>You do not have access to this page.</Alert></div>
         </>
       );
     if (e instanceof ApiError && (e.status === 502 || e.status === 503))
@@ -21,7 +21,7 @@ export async function guard<T>(p: Promise<T>, crumbs: string[]): Promise<T | Rea
           <PageHeader crumbs={crumbs} title={crumbs.at(-1)!} />
           <div className="px-8 py-4">
             <Alert className="border-amber-100 bg-amber-50 text-amber-800">
-              Layanan pencarian sedang tidak tersedia, daftar data belum bisa ditampilkan. Data tetap aman tersimpan. ({e.message})
+              The search service is currently unavailable, so the record list cannot be shown yet. Your data is still safely stored. ({e.message})
             </Alert>
           </div>
         </>

@@ -10,24 +10,24 @@ import (
 	"eam/services/common/errs"
 )
 
-// Atribut classification (spesifikasi aset): field bertipe TAttributes menampilkan atribut sesuai classification
-// yang dipilih di field relasi From. Nilai = objek {id entri master-attribute: nilai}.
+// Classification attributes (asset specs): a TAttributes field shows the attributes of the classification
+// selected in the From relation field. Value = object {master-attribute entry id: value}.
 const (
 	ClassificationUID     = "master-classification"
 	AttributeUID          = "master-attribute"
-	ClassAttributesField  = "attributes" // repeatable component di classification: {attribute, mandatory, sortOrder}
-	ClassParentField      = "parent"     // atribut induk ikut diwarisi
+	ClassAttributesField  = "attributes" // repeatable component on classification: {attribute, mandatory, sortOrder}
+	ClassParentField      = "parent"     // parent attributes are inherited
 	AttrALN, AttrNumeric  = "ALN", "NUMERIC"
 	AttrDate, AttrBoolean = "DATE", "BOOLEAN"
 )
 
-// AttributeDef: satu atribut yang berlaku untuk sebuah classification (sudah digabung dengan induknya).
+// AttributeDef: one attribute that applies to a classification (already merged with its parents).
 type AttributeDef struct {
 	ID, Code, Label string
 	DataType        string
 	Unit            string
-	Domain          string // kode domain; nilai harus dari domain ini
-	Length          int    // ALN: panjang maksimal (0 = 255)
+	Domain          string // domain code; the value must come from this domain
+	Length          int    // ALN: maximum length (0 = 255)
 	Mandatory       bool
 	Order           float64
 }
@@ -35,52 +35,52 @@ type AttributeDef struct {
 func validateAttributesField(f Field, siblings []Field, inComponent bool) error {
 	i := slices.IndexFunc(siblings, func(x Field) bool { return x.Name == f.From })
 	if inComponent || i < 0 || siblings[i].Type != TRelation || siblings[i].Multiple || siblings[i].Target != ClassificationUID {
-		return errs.Invalid("field %q: atribut harus mengacu field relasi tunggal ke %s", f.Name, ClassificationUID)
+		return errs.Invalid("field %q: attributes must reference a single relation field to %s", f.Name, ClassificationUID)
 	}
 	return nil
 }
 
-// ValidateAttributes memvalidasi nilai atribut sesuai definisi; atribut di luar defs dibuang (classification diganti).
+// ValidateAttributes validates attribute values against their definitions; attributes outside defs are dropped (classification changed).
 func ValidateAttributes(defs []AttributeDef, v any, domainOK func(code, value string) bool) (map[string]any, error) {
 	in, ok := v.(map[string]any)
 	if v != nil && !ok {
-		return nil, errs.Invalid("atribut harus objek")
+		return nil, errs.Invalid("attributes must be an object")
 	}
 	out := map[string]any{}
 	for _, d := range defs {
 		x := in[d.ID]
 		if isEmpty(x) {
 			if d.Mandatory {
-				return nil, errs.Invalid("atribut %s wajib diisi", d.Label)
+				return nil, errs.Invalid("attribute %s is required", d.Label)
 			}
 			continue
 		}
-		bad := func(msg string) error { return errs.Invalid("atribut %s: %s", d.Label, msg) }
+		bad := func(msg string) error { return errs.Invalid("attribute %s: %s", d.Label, msg) }
 		switch d.DataType {
 		case AttrNumeric:
 			if _, ok := x.(float64); !ok {
-				return nil, bad("harus angka")
+				return nil, bad("must be a number")
 			}
 		case AttrBoolean:
 			if _, ok := x.(bool); !ok {
-				return nil, bad("harus true/false")
+				return nil, bad("must be true/false")
 			}
 		case AttrDate:
 			if s, ok := x.(string); !ok || func() bool { _, err := time.Parse(time.DateOnly, s); return err != nil }() {
-				return nil, bad("format tanggal harus YYYY-MM-DD")
+				return nil, bad("date format must be YYYY-MM-DD")
 			}
 		default: // ALN
 			s, ok := x.(string)
 			if !ok {
-				return nil, bad("harus teks")
+				return nil, bad("must be text")
 			}
 			if max := cmp.Or(d.Length, 255); utf8.RuneCountInString(s) > max {
-				return nil, bad("maksimal " + strconv.Itoa(max) + " karakter")
+				return nil, bad("maximum " + strconv.Itoa(max) + " characters")
 			}
 		}
 		if d.Domain != "" {
 			if s, _ := x.(string); !domainOK(d.Domain, s) {
-				return nil, bad("nilai tidak ada di domain " + d.Domain)
+				return nil, bad("value is not in domain " + d.Domain)
 			}
 		}
 		out[d.ID] = x

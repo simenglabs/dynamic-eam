@@ -8,10 +8,10 @@ import (
 	"eam/services/dynamic/internal/domain/content"
 )
 
-// Ensure membuat component & content type bawaan yang belum ada (yang sudah ada tidak disentuh,
-// supaya perubahan user lewat builder tidak tertimpa). Urutan seed bebas: component dan content type dibuat
-// berselang-seling sesuai dependensi (relation/component), diulang sampai tidak ada lagi yang bisa dibuat.
-// Kegagalan index pencarian tidak menghentikan seed (schema tetap tersimpan) dan dilaporkan di akhir.
+// Ensure creates missing built-in components & content types (existing ones are left untouched,
+// so user changes made through the builder are not overwritten). Seed order is free: components and content types
+// are created alternately according to dependencies (relation/component), repeated until nothing more can be created.
+// Search index failures do not stop the seed (the schema is still saved) and are reported at the end.
 func (s *Schemas) Ensure(ctx context.Context, comps []*content.Component, cts []*content.ContentType) (created []string, err error) {
 	var unavailable error
 	ok := func(e error) bool {
@@ -46,7 +46,7 @@ func (s *Schemas) Ensure(ctx context.Context, comps []*content.Component, cts []
 			return false
 		})
 	}
-	// Sisa yang tidak bisa dibuat: laporkan error aslinya.
+	// Leftovers that could not be created: report the original error.
 	if len(pendingC) > 0 {
 		_, e := s.CreateComponent(ctx, pendingC[0])
 		return created, e

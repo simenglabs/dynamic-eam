@@ -21,7 +21,7 @@ export function UserForm({ user, roles, canSuper, canSave, canDelete }: {
   const [delError, setDelError] = useState<string>();
 
   const onDelete = async () => {
-    if (!user || !(await confirmDialog({ title: `Hapus user ${user.username}?`, message: "Akun tidak bisa login lagi dan tidak bisa dikembalikan.", confirmText: "Hapus", danger: true }))) return;
+    if (!user || !(await confirmDialog({ title: `Delete user ${user.username}?`, message: "The account will no longer be able to sign in and cannot be restored.", confirmText: "Delete", danger: true }))) return;
     startDelete(async () => setDelError((await deleteUser(user.id)).error));
   };
 
@@ -36,9 +36,9 @@ export function UserForm({ user, roles, canSuper, canSave, canDelete }: {
             </Button>
           )}
           {user && (
-            // Profil (site, organisasi, dll) = content type dinamis user-profile; dirender zone dynamic.
+            // Profile (site, organization, etc.) = dynamic content type user-profile; rendered by the dynamic zone.
             <a href={`/dynamic/profile/${encodeURIComponent(user.id)}`}>
-              <Button type="button" variant="outline" tabIndex={-1}><MapPin /> Profil & penempatan</Button>
+              <Button type="button" variant="outline" tabIndex={-1}><MapPin /> Profile & placement</Button>
             </a>
           )}
           {canSave && <Button disabled={pending}><Save /> {pending ? "Saving..." : "Save"}</Button>}
@@ -73,7 +73,7 @@ export function UserForm({ user, roles, canSuper, canSave, canDelete }: {
               </span>
             </Field>
             <Field label={user ? "Reset Password" : "Password"} required={!user} optional={!!user}>
-              <Input name="password" type="password" minLength={8} maxLength={72} required={!user} autoComplete="new-password" placeholder={user ? "Kosongkan jika tidak diubah" : "Minimal 8 karakter"} />
+              <Input name="password" type="password" minLength={8} maxLength={72} required={!user} autoComplete="new-password" placeholder={user ? "Leave blank to keep unchanged" : "At least 8 characters"} />
             </Field>
             <div className="flex items-end gap-8 pb-2">
               <label className="flex items-center gap-2 font-bold">
@@ -82,7 +82,7 @@ export function UserForm({ user, roles, canSuper, canSave, canDelete }: {
               {user && (
                 <label className="flex items-center gap-2 font-bold">
                   <Checkbox name="isLocked" defaultChecked={user.isLocked} label="Locked" />
-                  {user.failedAttempts > 0 && <span className="text-muted-foreground font-normal">({user.failedAttempts}x gagal login)</span>}
+                  {user.failedAttempts > 0 && <span className="text-muted-foreground font-normal">({user.failedAttempts} failed logins)</span>}
                 </label>
               )}
             </div>

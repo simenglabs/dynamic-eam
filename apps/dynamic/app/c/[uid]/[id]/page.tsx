@@ -21,11 +21,11 @@ export default async function EditEntry({ params, searchParams }: {
   const [ct, entry] = res;
   const [{ components, options, domains }, history] = await Promise.all([
     loadFormData(ct),
-    // Riwayat butuh izin read content type; pengguna lewat view saja tidak melihatnya.
+    // History requires read permission on the content type; view-only users do not see it.
     api<Revision[]>("dynamic", `/content-types/${encodeURIComponent(uid)}/entries/${encodeURIComponent(id)}/history`).catch(() => []),
   ]);
   const title = displayLabel(ct.displayField, entry) || id;
-  // Tombol transisi: sah dari status saat ini DAN user punya izin "update" pada kunci transisi tsb.
+  // Transition buttons: valid from the current status AND the user has "update" permission on that transition key.
   const transitions = (ct.workflow?.transitions ?? [])
     .filter((t) => t.from.includes(entry.workflowStatus ?? "") && can(me, `ct/${uid}/t/${t.key}`, "update"))
     .map((t) => ({ key: t.key, label: t.label }));

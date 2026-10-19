@@ -11,7 +11,7 @@ import (
 	"eam/services/dynamic/internal/domain/content"
 )
 
-// AttributesOf: atribut sebuah classification + warisan induknya (atribut di anak menimpa induk), urut sortOrder.
+// AttributesOf: attributes of a classification + those inherited from its parents (child attributes override the parent), ordered by sortOrder.
 func (s *Entries) AttributesOf(ctx context.Context, classID string) ([]content.AttributeDef, error) {
 	var defs []content.AttributeDef
 	seen := map[string]bool{}
@@ -22,7 +22,7 @@ func (s *Entries) AttributesOf(ctx context.Context, classID string) ([]content.A
 			if depth == 0 {
 				return nil, err
 			}
-			break // induk sudah dihapus: cukup sampai sini
+			break // parent was deleted: stop here
 		}
 		list, _ := c.Data[content.ClassAttributesField].([]any)
 		for _, x := range list {
@@ -34,7 +34,7 @@ func (s *Entries) AttributesOf(ctx context.Context, classID string) ([]content.A
 			seen[aid] = true
 			a, err := s.live(ctx, content.AttributeUID, aid)
 			if err != nil {
-				continue // atribut dihapus
+				continue // attribute deleted
 			}
 			d := content.AttributeDef{ID: aid, Code: str(a.Data["attributeId"]), Label: cmp.Or(str(a.Data["description"]), str(a.Data["attributeId"])),
 				DataType: cmp.Or(str(a.Data["dataType"]), content.AttrALN), Unit: str(a.Data["unit"]), Order: 1e9}
@@ -65,7 +65,7 @@ func str(v any) string {
 	return fmt.Sprint(v)
 }
 
-// applyAttributes: nilai field atribut divalidasi terhadap classification yang dipilih.
+// applyAttributes: attribute field values are validated against the selected classification.
 func (s *Entries) applyAttributes(ctx context.Context, ct *content.ContentType, data map[string]any) error {
 	domains := map[string][]content.DomainValue{}
 	domainOK := func(code, v string) bool {
@@ -98,7 +98,7 @@ func (s *Entries) applyAttributes(ctx context.Context, ct *content.ContentType, 
 	return nil
 }
 
-// checkWhere: pilihan relasi harus memenuhi filter field-nya (dropdown hanya membantu, server yang menegakkan).
+// checkWhere: a relation choice must satisfy its field filter (the dropdown only helps; the server enforces it).
 func (s *Entries) checkWhere(ctx context.Context, ct *content.ContentType, data map[string]any) error {
 	for _, f := range ct.Fields {
 		filters := f.Filters(data)
@@ -111,15 +111,15 @@ func (s *Entries) checkWhere(ctx context.Context, ct *content.ContentType, data 
 		}
 		for _, id := range ids {
 			if e, err := s.live(ctx, f.Target, id); err == nil && !content.Matches(e, filters) {
-				return errs.Invalid("%s: pilihan tidak sesuai filter", f.Label)
+				return errs.Invalid("%s: the selection does not match the filter", f.Label)
 			}
 		}
 	}
 	return nil
 }
 
-// ensureProfile: field "isi dari user" ke relasi profil user butuh entri profil user login. Dibuat otomatis bila belum ada,
-// dan nama user disimpan di profil (field "name") supaya label relasinya nama, bukan ID.
+// ensureProfile: a "fill from user" field on a user profile relation needs the logged-in user's profile entry. It is created automatically if missing,
+// and the user's name is stored in the profile (field "name") so the relation label is the name, not the ID.
 func (s *Entries) ensureProfile(ctx context.Context, ct *content.ContentType, by content.Actor) error {
 	need := slices.ContainsFunc(ct.Fields, func(f content.Field) bool {
 		return f.Type == content.TRelation && f.AutoFill != nil && f.AutoFill.Source == content.AutoUser

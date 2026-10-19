@@ -1,4 +1,4 @@
-// Package memory: adapter in-memory untuk semua port dynamic. Dipakai test & dev tanpa Mongo/ES.
+// Package memory: in-memory adapter for all dynamic ports. Used by tests & dev without Mongo/ES.
 package memory
 
 import (
@@ -104,7 +104,7 @@ type Entries struct {
 	mu        sync.Mutex
 	data      map[string]map[string]content.Entry // uid -> id -> entry
 	unique    map[string][]string
-	revisions map[string][]content.Revision // uid/id -> revisi
+	revisions map[string][]content.Revision // uid/id -> revisions
 	seq       map[string]int64
 }
 
@@ -130,7 +130,7 @@ func (r *Entries) Get(_ context.Context, uid, id string) (*content.Entry, error)
 	defer r.mu.Unlock()
 	e, ok := r.data[uid][id]
 	if !ok {
-		return nil, errs.NotFound("data")
+		return nil, errs.NotFound("record")
 	}
 	return &e, nil
 }
@@ -140,9 +140,9 @@ func (r *Entries) Save(_ context.Context, uid string, e *content.Entry) error {
 	defer r.mu.Unlock()
 	for _, f := range r.unique[uid] {
 		for id, o := range r.data[uid] {
-			// unique hanya antar entri yang belum dihapus
+			// unique only among entries that are not deleted
 			if id != e.ID && !e.Deleted && !o.Deleted && e.Data[f] != nil && o.Data[f] == e.Data[f] {
-				return errs.Conflict("nilai %s sudah dipakai entri lain", f)
+				return errs.Conflict("value %s is already used by another record", f)
 			}
 		}
 	}
@@ -186,7 +186,7 @@ func (r *Entries) FindOne(_ context.Context, uid, field string, value any) (*con
 			return &e, nil
 		}
 	}
-	return nil, errs.NotFound("data")
+	return nil, errs.NotFound("record")
 }
 
 func (r *Entries) AddRevision(_ context.Context, uid string, rev *content.Revision) error {
@@ -215,7 +215,7 @@ func (r *Entries) SyncUnique(_ context.Context, uid string, fields []string) err
 		for _, e := range r.data[uid] {
 			if v := e.Data[f]; v != nil && !e.Deleted {
 				if seen[v] {
-					return errs.Conflict("field %s tidak bisa dibuat unique: sudah ada nilai duplikat", f)
+					return errs.Conflict("field %s cannot be made unique: duplicate values already exist", f)
 				}
 				seen[v] = true
 			}
@@ -235,7 +235,7 @@ func (r *Entries) Drop(_ context.Context, uid string) error {
 
 // ---------- search index ----------
 
-// Index: pencarian substring sederhana atas semua nilai teks. Fail = simulasi Elasticsearch mati.
+// Index: simple substring search over all text values. Fail = simulates Elasticsearch being down.
 type Index struct {
 	mu       sync.Mutex
 	docs     map[string]map[string]content.Entry

@@ -4,34 +4,34 @@ import assert from "node:assert/strict";
 import { filterOptions, moveIndex, toggleValue } from "./comboboxLogic.ts";
 
 const opts = [
-  { value: "LOW", label: "LOW — Rendah" },
-  { value: "MEDIUM", label: "MEDIUM — Sedang" },
-  { value: "HIGH", label: "HIGH — Tinggi" },
-  { value: "x", label: "Gardu Distribusi", hint: "GDD01001" },
+  { value: "LOW", label: "LOW — Low" },
+  { value: "MEDIUM", label: "MEDIUM — Medium" },
+  { value: "HIGH", label: "HIGH — High" },
+  { value: "x", label: "Distribution Substation", hint: "GDD01001" },
 ];
 
-test("cari tidak peka huruf besar, cocok di label, value, atau hint", () => {
-  assert.deepEqual(filterOptions(opts, "sedang").map((o) => o.value), ["MEDIUM"]);
+test("search is case-insensitive, matches label, value, or hint", () => {
+  assert.deepEqual(filterOptions(opts, "medium").map((o) => o.value), ["MEDIUM"]);
   assert.deepEqual(filterOptions(opts, "high").map((o) => o.value), ["HIGH"]);
   assert.deepEqual(filterOptions(opts, "gdd01").map((o) => o.value), ["x"]);
   assert.deepEqual(filterOptions(opts, "  ").length, 4);
 });
 
-test("semua kata harus cocok (urutan bebas)", () => {
-  assert.deepEqual(filterOptions(opts, "distribusi gardu").map((o) => o.value), ["x"]);
-  assert.deepEqual(filterOptions(opts, "gardu tinggi").length, 0);
+test("all words must match (any order)", () => {
+  assert.deepEqual(filterOptions(opts, "substation distribution").map((o) => o.value), ["x"]);
+  assert.deepEqual(filterOptions(opts, "substation high").length, 0);
 });
 
-test("navigasi keyboard: berputar & lompat ujung", () => {
+test("keyboard navigation: wraps & jumps to ends", () => {
   assert.equal(moveIndex(-1, 4, "ArrowDown"), 0);
   assert.equal(moveIndex(3, 4, "ArrowDown"), 0);
   assert.equal(moveIndex(0, 4, "ArrowUp"), 3);
   assert.equal(moveIndex(2, 4, "Home"), 0);
   assert.equal(moveIndex(1, 4, "End"), 3);
-  assert.equal(moveIndex(1, 0, "ArrowDown"), -1, "tanpa opsi");
+  assert.equal(moveIndex(1, 0, "ArrowDown"), -1, "no options");
 });
 
-test("multi: toggle tambah/hapus tanpa mengubah urutan", () => {
+test("multi: toggle add/remove without changing order", () => {
   assert.deepEqual(toggleValue(["a", "b"], "c"), ["a", "b", "c"]);
   assert.deepEqual(toggleValue(["a", "b", "c"], "b"), ["a", "c"]);
 });

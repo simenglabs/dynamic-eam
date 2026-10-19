@@ -35,7 +35,7 @@ func (s *Users) Update(ctx context.Context, actor Actor, id string, p user.EditP
 		return nil, err
 	}
 	if u.IsSuperAdmin() && !actor.SuperAdmin {
-		return nil, errs.Forbidden("hanya superadmin yang boleh mengubah akun superadmin")
+		return nil, errs.Forbidden("only a superadmin can edit a superadmin account")
 	}
 	if err := s.checkRoles(ctx, actor, p.Roles); err != nil {
 		return nil, err
@@ -43,7 +43,7 @@ func (s *Users) Update(ctx context.Context, actor Actor, id string, p user.EditP
 	if id == actor.UserID {
 		sameRoles := slices.Equal(slices.Sorted(slices.Values(p.Roles)), u.Roles)
 		if !sameRoles || (p.Active != nil && !*p.Active) || (p.Locked != nil && *p.Locked) {
-			return nil, errs.Forbidden("tidak bisa mengubah role, menonaktifkan, atau mengunci akun sendiri")
+			return nil, errs.Forbidden("you cannot change roles of, deactivate, or lock your own account")
 		}
 	}
 	if err := u.Edit(p, s.d.Hasher, s.d.Now()); err != nil {
@@ -54,22 +54,22 @@ func (s *Users) Update(ctx context.Context, actor Actor, id string, p user.EditP
 
 func (s *Users) Delete(ctx context.Context, actor Actor, id string) error {
 	if id == actor.UserID {
-		return errs.Forbidden("tidak bisa menghapus akun sendiri")
+		return errs.Forbidden("you cannot delete your own account")
 	}
 	u, err := s.d.Users.Get(ctx, id)
 	if err != nil {
 		return err
 	}
 	if u.IsSuperAdmin() && !actor.SuperAdmin {
-		return errs.Forbidden("hanya superadmin yang boleh menghapus akun superadmin")
+		return errs.Forbidden("only a superadmin can delete a superadmin account")
 	}
 	return s.d.Users.Delete(ctx, id)
 }
 
-// checkRoles: semua role harus ada; hanya superadmin yang boleh memberi role superadmin.
+// checkRoles: all roles must exist; only a superadmin can grant the superadmin role.
 func (s *Users) checkRoles(ctx context.Context, actor Actor, roles []string) error {
 	if slices.Contains(roles, user.SuperAdminRole) && !actor.SuperAdmin {
-		return errs.Forbidden("hanya superadmin yang boleh memberi role superadmin")
+		return errs.Forbidden("only a superadmin can grant the superadmin role")
 	}
 	unique := slices.Compact(slices.Sorted(slices.Values(roles)))
 	n, err := s.d.Roles.CountExisting(ctx, unique)
@@ -77,7 +77,7 @@ func (s *Users) checkRoles(ctx context.Context, actor Actor, roles []string) err
 		return err
 	}
 	if n != len(unique) {
-		return errs.Invalid("ada role yang tidak dikenal")
+		return errs.Invalid("one or more roles are unknown")
 	}
 	return nil
 }

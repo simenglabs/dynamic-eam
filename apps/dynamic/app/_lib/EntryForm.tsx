@@ -18,9 +18,9 @@ type Ctx = { components: Record<string, Component>; options: Record<string, Opti
 const META = ["id", "version", "createdAt", "updatedAt", "createdBy", "updatedBy", "workflowStatus", "workflowHistory"];
 
 export function EntryForm({ ct, entry, history = [], components, options, domains = {}, canSave, canDelete, transitions, view, saveAction, back, placement }: {
-  placement?: { defaultSite?: string; organization?: string; userId?: string; userName?: string; profile?: Record<string, unknown> }; // isi otomatis dari user & profil
-  saveAction?: (json: string) => Promise<{ error?: string }>; // default: saveEntry (buat/ubah entri biasa)
-  back?: { href: string; label: string }; // <a> biasa: boleh ke zone lain
+  placement?: { defaultSite?: string; organization?: string; userId?: string; userName?: string; profile?: Record<string, unknown> }; // auto fill from user & profile
+  saveAction?: (json: string) => Promise<{ error?: string }>; // default: saveEntry (create/update a regular entry)
+  back?: { href: string; label: string }; // plain <a>: may point to another zone
   domains?: Record<string, DomainValue[]>;
   history?: Revision[];
   ct: ContentType;
@@ -29,11 +29,11 @@ export function EntryForm({ ct, entry, history = [], components, options, domain
   options: Record<string, Option[]>;
   canSave: boolean;
   canDelete: boolean;
-  transitions: { key: string; label: string }[]; // transisi yang boleh & sah dari status saat ini
+  transitions: { key: string; label: string }[]; // transitions allowed & valid from the current status
   view?: string;
 }) {
   const [data, setData] = useState<Data>(() => {
-    // Data baru: isi nilai default field (server juga mengisinya, ini supaya terlihat di form).
+    // New record: fill field defaults (the server does too; this makes them visible in the form).
     if (!entry)
       return Object.fromEntries([
         ...ct.fields.filter((f) => f.default !== undefined).map((f) => [f.name, f.default]),
@@ -57,7 +57,7 @@ export function EntryForm({ ct, entry, history = [], components, options, domain
   const [error, setError] = useState<string>();
   const setField = (name: string, v: unknown) => setData((cur) => ({ ...cur, [name]: v }));
   const [pending, start] = useTransition();
-  // user login sebagai opsi relasi profil (profilnya bisa belum ada / tidak boleh dibaca): label = namanya
+  // logged-in user as a profile relation option (profile may not exist / be readable): label = their name
   const me = placement?.userId ? { id: placement.userId, label: placement.userName ?? placement.userId } : undefined;
   const ctx = { components, options, domains, form: data, me };
 
@@ -65,8 +65,8 @@ export function EntryForm({ ct, entry, history = [], components, options, domain
   const writable = canSave && !locked;
   const state = stateOf(ct, entry?.workflowStatus);
 
-  // Isi otomatis realtime: tiap input berubah, server menghitung field otomatis (relasi, profil, kode berpola)
-  // dengan aturan yang sama seperti Save. Terkunci = selalu ditimpa; tidak terkunci = hanya bila kosong.
+  // Live auto fill: on every input change the server computes auto fields (relation, profile, patterned code)
+  // with the same rules as Save. Locked = always overwritten; unlocked = only when empty.
   const autoFields = ct.fields.filter((f) => f.autoFill);
   const input = JSON.stringify(Object.fromEntries(Object.entries(data).filter(([k]) => !autoFields.some((f) => f.name === k && f.autoFill!.lock))));
   useEffect(() => {
@@ -86,7 +86,7 @@ export function EntryForm({ ct, entry, history = [], components, options, domain
             return out;
           });
         })
-        .catch(() => {}); // preview saja; Save tetap dihitung server
+        .catch(() => {}); // preview only; Save is still computed by the server
     }, 250);
     return () => { clearTimeout(t); ac.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,24 +95,24 @@ export function EntryForm({ ct, entry, history = [], components, options, domain
   const submit = () =>
     start(async () => setError((await (saveAction ? saveAction(JSON.stringify(data)) : saveEntry(ct.uid, entry?.id, JSON.stringify(data))))?.error));
   const remove = async () => {
-    if (!entry || !(await confirmDialog({ title: "Hapus data ini?", message: "Data yang dihapus tidak bisa dikembalikan.", confirmText: "Hapus", danger: true }))) return;
+    if (!entry || !(await confirmDialog({ title: "Delete this record?", message: "Deleted records cannot be restored.", confirmText: "Delete", danger: true }))) return;
     start(async () => setError((await deleteEntry(ct.uid, entry.id))?.error));
   };
-  const [asking, setAsking] = useState<Transition>(); // transisi yang punya isian: buka modal form
+  const [asking, setAsking] = useState<Transition>(); // transition with inputs: open the modal form
   const transit = async (t: { key: string; label: string }) => {
     if (!entry) return;
     const full = ct.workflow?.transitions.find((x) => x.key === t.key);
     if (full?.fields?.length) return setAsking(full);
-    const note = await promptDialog({ title: t.label, message: "Catatan (opsional) akan tercatat di riwayat status.", placeholder: "Catatan", multiline: true, confirmText: t.label });
+    const note = await promptDialog({ title: t.label, message: "The note (optional) will be recorded in the status history.", placeholder: "Note", multiline: true, confirmText: t.label });
     if (note === null) return;
     start(async () => setError((await runTransition(ct.uid, entry.id, t.key, note, view))?.error));
   };
 
-  // Tab: satu per section layout + Riwayat. Satu section tanpa riwayat = tanpa tab.
+  // Tabs: one per layout section + History. One section without history = no tabs.
   const sections = effectiveLayout(ct).sections;
   const tabs = [
     ...sections.map((x) => ({ key: `s:${x.id}`, label: x.title })),
-    ...(entry ? [{ key: "history", label: `Riwayat (${history.length})` }] : []),
+    ...(entry ? [{ key: "history", label: `History (${history.length})` }] : []),
   ];
   const [tab, setTab] = useState(tabs[0]?.key);
   const tabbed = tabs.length > 1;
@@ -121,7 +121,7 @@ export function EntryForm({ ct, entry, history = [], components, options, domain
     <>
     <form
       action={submit}
-      // field wajib kosong di tab lain: pindah ke tab itu supaya browser bisa menunjuknya
+      // empty required field in another tab: switch to it so the browser can point to it
       onInvalidCapture={(e) => {
         const t = (e.target as HTMLElement).closest<HTMLElement>("[data-tab]")?.dataset.tab;
         if (t && t !== tab) flushSync(() => setTab(t));
@@ -144,9 +144,9 @@ export function EntryForm({ ct, entry, history = [], components, options, domain
       </div>
       <div className="flex flex-col gap-4 px-8 py-4">
         {error && <Alert>{error}</Alert>}
-        {locked && <Alert className="border-primary/30 bg-accent text-foreground">Data berstatus {state?.label ?? entry?.workflowStatus} dan terkunci.</Alert>}
+        {locked && <Alert className="border-primary/30 bg-accent text-foreground">This record is {state?.label ?? entry?.workflowStatus} and locked.</Alert>}
         {tabbed && (
-          <div role="tablist" aria-label="Bagian form" className="flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1">
+          <div role="tablist" aria-label="Form sections" className="flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1">
             {tabs.map((t) => (
               <button key={t.key} type="button" role="tab" aria-selected={tab === t.key} onClick={() => setTab(t.key)}
                 className={"rounded-lg px-4 py-2 text-sm font-semibold transition " + (tab === t.key ? "bg-primary text-white" : "text-slate-600 hover:bg-slate-100")}>
@@ -167,9 +167,9 @@ export function EntryForm({ ct, entry, history = [], components, options, domain
                       <div key={ci}>
                         {f &&
                           (f.autoFill?.lock ? (
-                            // Terkunci: selalu dihitung server, ditampilkan saja.
-                            <FormField label={`${f.label} (otomatis)`}>
-                              <Input value={shown(f, data[f.name], ctx)} readOnly tabIndex={-1} className="bg-slate-50 text-slate-600" placeholder="terisi otomatis" />
+                            // Locked: always computed by the server, display only.
+                            <FormField label={`${f.label} (auto)`}>
+                              <Input value={shown(f, data[f.name], ctx)} readOnly tabIndex={-1} className="bg-slate-50 text-slate-600" placeholder="filled automatically" />
                             </FormField>
                           ) : (
                             <FieldInput f={f.autoFill?.source === "pattern" ? { ...f, required: false } : f} value={data[f.name]} onChange={(v) => setField(f.name, v)} ctx={ctx} />
@@ -249,8 +249,8 @@ function FieldInput({ f, value, onChange, ctx }: { f: Field; value: unknown; onC
       ) : f.type === "domain" ? (
         <Combobox value={str} required={f.required} onChange={(v) => onChange(v || null)} aria-label={f.label}
           options={[
-            // nilai lama yang sudah dinonaktifkan di domain tetap ditampilkan supaya tidak hilang diam-diam
-            ...(str && !(ctx.domains[f.domain!] ?? []).some((v) => v.valueId === str) ? [{ value: str, label: `${str} (tidak aktif)` }] : []),
+            // keep showing an old value deactivated in the domain so it does not silently disappear
+            ...(str && !(ctx.domains[f.domain!] ?? []).some((v) => v.valueId === str) ? [{ value: str, label: `${str} (inactive)` }] : []),
             ...(ctx.domains[f.domain!] ?? []).map((v) => ({ value: v.valueId, label: v.valueDescription, hint: v.valueId })),
           ]} />
       ) : (
@@ -260,9 +260,9 @@ function FieldInput({ f, value, onChange, ctx }: { f: Field; value: unknown; onC
   );
 }
 
-// Relasi; dengan filter (where) opsi diambil ulang dari server tiap nilai field acuan di form berubah,
-// dan pilihan yang tidak lagi lolos filter dikosongkan.
-/* ponytail: maksimal 100 opsi pertama dari server; ganti ke pencarian ke server kalau data relasi besar */
+// Relation; with a filter (where), options are refetched from the server whenever a referenced form field changes,
+// and selections that no longer pass the filter are cleared.
+/* ponytail: at most the first 100 options from the server; switch to server-side search if relation data grows large */
 function RelationInput({ f, value, onChange, ctx }: { f: Field; value: unknown; onChange: (v: unknown) => void; ctx: Ctx }) {
   const where = JSON.stringify(resolveWhere(f.where, ctx.form));
   const [filtered, setFiltered] = useState<Option[]>();
@@ -274,7 +274,7 @@ function RelationInput({ f, value, onChange, ctx }: { f: Field; value: unknown; 
       .then((r) => (r.ok ? r.json() : []))
       .then((opts: Option[]) => {
         setFiltered(opts);
-        if (opts.length >= 100) return; // daftar terpotong: jangan kosongkan pilihan yang mungkin ada di luar 100 pertama
+        if (opts.length >= 100) return; // truncated list: do not clear selections that may be beyond the first 100
         const ok = (id: unknown) => opts.some((o) => o.id === id);
         if (f.multiple && Array.isArray(value) && value.some((v) => !ok(v))) onChange(value.filter(ok));
         else if (!f.multiple && value && !ok(value)) onChange(null);
@@ -296,7 +296,7 @@ function RelationInput({ f, value, onChange, ctx }: { f: Field; value: unknown; 
   );
 }
 
-// Atribut classification: input muncul sesuai classification yang dipilih (termasuk warisan induk).
+// Classification attributes: inputs follow the selected classification (including inherited from parents).
 function AttributesInput({ f, value, onChange, ctx }: { f: Field; value: unknown; onChange: (v: unknown) => void; ctx: Ctx }) {
   const classId = ctx.form[f.from!] as string | undefined;
   const [defs, setDefs] = useState<AttributeDef[]>();
@@ -315,11 +315,11 @@ function AttributesInput({ f, value, onChange, ctx }: { f: Field; value: unknown
     <fieldset className="grid gap-3">
       <legend className="mb-2 text-sm font-semibold text-slate-700">{f.label}</legend>
       {!classId ? (
-        <p className="text-sm text-slate-500">Pilih classification dulu untuk menampilkan atributnya.</p>
+        <p className="text-sm text-slate-500">Select a classification first to show its attributes.</p>
       ) : !defs ? (
-        <p className="text-sm text-slate-500">Memuat atribut…</p>
+        <p className="text-sm text-slate-500">Loading attributes…</p>
       ) : defs.length === 0 ? (
-        <p className="text-sm text-slate-500">Classification ini belum punya atribut.</p>
+        <p className="text-sm text-slate-500">This classification has no attributes yet.</p>
       ) : (
         <div className="grid gap-x-4 gap-y-5 md:grid-cols-3">
           {defs.map((d) => {
@@ -352,7 +352,7 @@ function AttributesInput({ f, value, onChange, ctx }: { f: Field; value: unknown
   );
 }
 
-// Modal isian transisi (mis. Submit wajib upload lampiran + pilih jenisnya). Divalidasi lagi di server.
+// Transition input modal (e.g. Submit requires an attachment upload + its type). Validated again on the server.
 function TransitionDialog({ t, ctx, pending, error, onCancel, onSubmit }: {
   t: Transition; ctx: Ctx; pending: boolean; error?: string; onCancel: () => void; onSubmit: (note: string, data: Data) => void;
 }) {
@@ -367,11 +367,11 @@ function TransitionDialog({ t, ctx, pending, error, onCancel, onSubmit }: {
         <h2 className="text-lg font-bold">{t.label}</h2>
         {error && <Alert>{error}</Alert>}
         <Fields fields={t.fields ?? []} value={input} onChange={setInput} ctx={{ ...ctx, form: input }} />
-        <FormField label="Catatan" optional>
-          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Tercatat di riwayat status" />
+        <FormField label="Note" optional>
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="Recorded in the status history" />
         </FormField>
         <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onCancel}>Batal</Button>
+          <Button type="button" variant="outline" onClick={onCancel}>Cancel</Button>
           <Button type="submit" disabled={pending}>{t.label}</Button>
         </div>
       </form>
@@ -379,7 +379,7 @@ function TransitionDialog({ t, ctx, pending, error, onCancel, onSubmit }: {
   );
 }
 
-// Link file (nama asli) untuk riwayat.
+// File links (original names) for history.
 function MediaLinks({ value }: { value: unknown }) {
   const ids = (Array.isArray(value) ? value : [value]).map(String);
   const [meta, setMeta] = useState<Record<string, Media>>({});
@@ -394,7 +394,7 @@ function MediaLinks({ value }: { value: unknown }) {
 
 function ComponentInput({ f, value, onChange, ctx }: { f: Field; value: unknown; onChange: (v: unknown) => void; ctx: Ctx }) {
   const comp = ctx.components[f.component!];
-  if (!comp) return <Alert>Component {f.component} tidak ditemukan.</Alert>;
+  if (!comp) return <Alert>Component {f.component} not found.</Alert>;
   const title = (
     <legend className="px-1 text-base font-bold">
       {f.label} <span className="text-muted-foreground font-normal">({comp.label}{f.repeatable ? ", repeatable" : ""})</span>
@@ -416,18 +416,18 @@ function ComponentInput({ f, value, onChange, ctx }: { f: Field; value: unknown;
       {title}
       {list.map((item, i) => (
         <div key={i} className="relative rounded-md border border-dashed p-4 pt-8">
-          <Button type="button" variant="ghost" aria-label="Hapus item" className="text-destructive absolute top-1 right-1" onClick={() => onChange(list.filter((_, j) => j !== i))}>
+          <Button type="button" variant="ghost" aria-label="Delete item" className="text-destructive absolute top-1 right-1" onClick={() => onChange(list.filter((_, j) => j !== i))}>
             <X />
           </Button>
           <Fields fields={comp.fields} value={item} onChange={(d) => onChange(list.map((x, j) => (j === i ? d : x)))} ctx={ctx} />
         </div>
       ))}
-      <Button type="button" variant="outline" className="w-fit" onClick={() => onChange([...list, {}])}><Plus /> Tambah {comp.label}</Button>
+      <Button type="button" variant="outline" className="w-fit" onClick={() => onChange([...list, {}])}><Plus /> Add {comp.label}</Button>
     </fieldset>
   );
 }
 
-// Upload langsung ke /api/dynamic/media (lewat rewrite shell, auth dari cookie). Nilai = id file.
+// Upload directly to /api/dynamic/media (via the shell rewrite, auth from cookie). Value = file id.
 function MediaInput({ multiple, value, onChange }: { multiple: boolean; value: unknown; onChange: (v: unknown) => void }) {
   const ids = (multiple ? (value as string[]) : value ? [value as string] : []) ?? [];
   const [meta, setMeta] = useState<Record<string, Media>>({});
@@ -453,7 +453,7 @@ function MediaInput({ multiple, value, onChange }: { multiple: boolean; value: u
       const res = await fetch("/api/dynamic/media", { method: "POST", body });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(json.error ?? "Upload gagal");
+        setError(json.error ?? "Upload failed");
         break;
       }
       uploaded.push(json);
@@ -469,14 +469,14 @@ function MediaInput({ multiple, value, onChange }: { multiple: boolean; value: u
         <div key={id} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
           <FileText className="size-4 shrink-0" />
           <a href={`/api/dynamic/media/${id}`} target="_blank" rel="noreferrer" className="text-primary truncate underline">{meta[id]?.name ?? id}</a>
-          <button type="button" aria-label="Hapus file" className="text-destructive ml-auto" onClick={() => onChange(multiple ? ids.filter((x) => x !== id) : null)}>
+          <button type="button" aria-label="Delete file" className="text-destructive ml-auto" onClick={() => onChange(multiple ? ids.filter((x) => x !== id) : null)}>
             <X className="size-4" />
           </button>
         </div>
       ))}
       {(multiple || ids.length === 0) && (
         <label className="border-primary text-primary flex h-10 w-fit cursor-pointer items-center gap-2 rounded-md border px-3 text-sm font-medium">
-          <Upload className="size-4" /> {busy ? "Uploading..." : multiple ? "Upload file" : "Pilih file"}
+          <Upload className="size-4" /> {busy ? "Uploading..." : multiple ? "Upload file" : "Choose file"}
           <input type="file" multiple={multiple} className="sr-only" disabled={busy} onChange={(e) => { upload(e.target.files); e.target.value = ""; }} />
         </label>
       )}
@@ -486,17 +486,17 @@ function MediaInput({ multiple, value, onChange }: { multiple: boolean; value: u
 }
 
 const ACTION: Record<Revision["action"], { label: string; color: "green" | "blue" | "red" | "yellow" }> = {
-  create: { label: "Dibuat", color: "green" },
-  update: { label: "Diubah", color: "blue" },
-  delete: { label: "Dihapus", color: "red" },
-  transition: { label: "Status", color: "yellow" },
+  create: { label: "Created", color: "green" },
+  update: { label: "Updated", color: "blue" },
+  delete: { label: "Deleted", color: "red" },
+  transition: { label: "Status changed", color: "yellow" },
 };
-const when = (s?: string) => (s ? new Date(s).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "–");
+const when = (s?: string) => (s ? new Date(s).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" }) : "–");
 
-// Audit trail: siapa, kapan, field apa berubah dari apa ke apa (create/update/delete/transisi).
+// Audit trail: who, when, which field changed from what to what (create/update/delete/transition).
 function HistoryCard({ ct, entry, history, ctx }: { ct: ContentType; entry: Entry; history: Revision[]; ctx: Ctx }) {
   const fieldLabel = (f: string) => (f === "workflowStatus" ? "Status" : (ct.fields.find((x) => x.name === f)?.label ?? f));
-  // nama atribut classification (field bertipe attributes) untuk riwayat
+  // classification attribute names (attributes-type fields) for history
   const [attrs, setAttrs] = useState<Record<string, string>>({});
   const classIds = ct.fields.filter((f) => f.type === "attributes").map((f) => entry[f.from!]).filter(Boolean).join(",");
   useEffect(() => {
@@ -504,18 +504,18 @@ function HistoryCard({ ct, entry, history, ctx }: { ct: ContentType; entry: Entr
       fetch(`/api/dynamic/classifications/${encodeURIComponent(id)}/attributes`).then((r) => (r.ok ? r.json() : []))
         .then((defs: AttributeDef[]) => setAttrs((a) => ({ ...a, ...Object.fromEntries(defs.map((d) => [d.id, d.label])) }))).catch(() => {});
   }, [classIds]);
-  const order = (f: string) => ct.fields.findIndex((x) => x.name === f); // status (-1) duluan, lalu urutan field schema
+  const order = (f: string) => ct.fields.findIndex((x) => x.name === f); // status (-1) first, then schema field order
   const lk = { ...ctx, attrs, state: (k: string) => stateOf(ct, k)?.label ?? k };
   const created = history.find((h) => h.action === "create");
   return (
     <Card>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-4">
-        <h2 className="text-lg font-bold">Riwayat Perubahan</h2>
+        <h2 className="text-lg font-bold">Change History</h2>
         <p className="text-sm text-slate-500">
-          Versi {entry.version ?? "–"} · dibuat {created?.byName ? `oleh ${created.byName} ` : ""}{when(entry.createdAt)} · diubah {when(entry.updatedAt)}
+          Version {entry.version ?? "–"} · created {created?.byName ? `by ${created.byName} ` : ""}{when(entry.createdAt)} · updated {when(entry.updatedAt)}
         </p>
       </div>
-      {history.length === 0 && <p className="text-sm text-slate-500">Belum ada riwayat (data dibuat sebelum audit trail aktif).</p>}
+      {history.length === 0 && <p className="text-sm text-slate-500">No history yet (record was created before the audit trail was enabled).</p>}
       <ol className="flex flex-col">
         {[...history].reverse().map((h) => (
           <li key={h.version} className="grid grid-cols-[9.5rem_1fr] gap-4 border-b border-slate-100 py-3 last:border-0">
@@ -566,10 +566,10 @@ function HistoryCard({ ct, entry, history, ctx }: { ct: ContentType; entry: Entr
   );
 }
 
-// List (mis. profil "sites") ke field tunggal: ambil yang pertama (sama dengan server).
+// List (e.g. profile "sites") into a single field: take the first one (same as server).
 const single = (f: Field, v: unknown) => (!f.multiple && Array.isArray(v) ? v[0] : v);
 
-// Nilai field terkunci untuk ditampilkan: relasi & domain pakai label, bukan ID.
+// Display value of a locked field: relations & domains show labels, not IDs.
 function shown(f: Field, v: unknown, ctx: Ctx): string {
   if (v == null) return "";
   const ids = Array.isArray(v) ? v.map(String) : [String(v)];

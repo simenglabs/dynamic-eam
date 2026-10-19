@@ -19,7 +19,7 @@ func TestCreateUser(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got, _ := e.users.Get(context.Background(), u.ID); got == nil || len(got.Roles) != 2 {
-		t.Errorf("user tidak tersimpan benar: %+v", got)
+		t.Errorf("user not stored correctly: %+v", got)
 	}
 }
 
@@ -29,9 +29,9 @@ func TestCreateUserRules(t *testing.T) {
 		p     user.NewParams
 		want  errs.Kind
 	}{
-		"role tak dikenal":                 {adminActor, newUser("hantu"), errs.KindInvalid},
-		"admin beri superadmin":            {adminActor, newUser(user.SuperAdminRole), errs.KindForbidden},
-		"superadmin boleh beri superadmin": {superActor, newUser(user.SuperAdminRole), ""},
+		"unknown role":                    {adminActor, newUser("ghost"), errs.KindInvalid},
+		"admin grants superadmin":         {adminActor, newUser(user.SuperAdminRole), errs.KindForbidden},
+		"superadmin may grant superadmin": {superActor, newUser(user.SuperAdminRole), ""},
 	}
 	for name, c := range cases {
 		e := newEnv()
@@ -47,7 +47,7 @@ func TestCreateDuplicateUsername(t *testing.T) {
 	ctx := context.Background()
 	e.user.Create(ctx, adminActor, newUser("user"))
 	p := newUser("user")
-	p.Username, p.Email = "BUDI", "lain@x.id"
+	p.Username, p.Email = "BUDI", "other@x.id"
 	if _, err := e.user.Create(ctx, adminActor, p); errs.KindOf(err) != errs.KindConflict {
 		t.Errorf("err = %v", err)
 	}
@@ -64,24 +64,24 @@ func TestUpdateUserRules(t *testing.T) {
 	}
 
 	if _, err := e.user.Update(ctx, adminActor, root.ID, edit(user.SuperAdminRole)); errs.KindOf(err) != errs.KindForbidden {
-		t.Errorf("admin ubah superadmin: %v", err)
+		t.Errorf("admin edits superadmin: %v", err)
 	}
 	if _, err := e.user.Update(ctx, self, budi.ID, edit("admin")); errs.KindOf(err) != errs.KindForbidden {
-		t.Errorf("ubah role sendiri: %v", err)
+		t.Errorf("change own role: %v", err)
 	}
 	locked := edit("user")
 	locked.Locked = new(true)
 	if _, err := e.user.Update(ctx, self, budi.ID, locked); errs.KindOf(err) != errs.KindForbidden {
-		t.Errorf("kunci akun sendiri: %v", err)
+		t.Errorf("lock own account: %v", err)
 	}
 	if _, err := e.user.Update(ctx, self, budi.ID, edit("user")); err != nil {
-		t.Errorf("edit profil sendiri tanpa ubah role harus boleh: %v", err)
+		t.Errorf("editing own profile without changing roles must be allowed: %v", err)
 	}
 	if u, err := e.user.Update(ctx, adminActor, budi.ID, edit("user", "admin")); err != nil || len(u.Roles) != 2 {
-		t.Errorf("admin ubah role user lain: %v %+v", err, u)
+		t.Errorf("admin changes another user's roles: %v %+v", err, u)
 	}
-	if _, err := e.user.Update(ctx, adminActor, "tidak-ada", edit("user")); errs.KindOf(err) != errs.KindNotFound {
-		t.Errorf("user tidak ada: %v", err)
+	if _, err := e.user.Update(ctx, adminActor, "missing", edit("user")); errs.KindOf(err) != errs.KindNotFound {
+		t.Errorf("user does not exist: %v", err)
 	}
 }
 
@@ -92,15 +92,15 @@ func TestDeleteUserRules(t *testing.T) {
 	root, _ := e.users.FindByLogin(ctx, "admin")
 
 	if err := e.user.Delete(ctx, Actor{UserID: budi.ID}, budi.ID); errs.KindOf(err) != errs.KindForbidden {
-		t.Errorf("hapus diri sendiri: %v", err)
+		t.Errorf("delete self: %v", err)
 	}
 	if err := e.user.Delete(ctx, adminActor, root.ID); errs.KindOf(err) != errs.KindForbidden {
-		t.Errorf("admin hapus superadmin: %v", err)
+		t.Errorf("admin deletes superadmin: %v", err)
 	}
 	if err := e.user.Delete(ctx, adminActor, budi.ID); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.users.Get(ctx, budi.ID); errs.KindOf(err) != errs.KindNotFound {
-		t.Error("user harus terhapus")
+		t.Error("user must be deleted")
 	}
 }

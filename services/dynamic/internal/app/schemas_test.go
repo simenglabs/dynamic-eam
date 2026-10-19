@@ -14,10 +14,10 @@ func TestCreateContentTypeValidatesAndIndexes(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !ct.CreatedAt.Equal(t0) || !e.index.Exists("location") {
-		t.Errorf("timestamp / index belum dibuat: %+v", ct)
+		t.Errorf("timestamp / index not created: %+v", ct)
 	}
 	if _, err := e.schemas.CreateContentType(e.ctx, locationCT()); errs.KindOf(err) != errs.KindConflict {
-		t.Errorf("UID duplikat: %v", err)
+		t.Errorf("duplicate UID: %v", err)
 	}
 	bad := locationCT()
 	bad.UID = "lain"
@@ -42,10 +42,10 @@ func TestUpdateContentTypeKeepsUIDAndReindexes(t *testing.T) {
 		t.Errorf("update: %+v", ct)
 	}
 	if e.index.Rebuilds("vehicle") != 2 {
-		t.Errorf("update harus rebuild index (create + update), got %d", e.index.Rebuilds("vehicle"))
+		t.Errorf("update must rebuild index (create + update), got %d", e.index.Rebuilds("vehicle"))
 	}
 	if _, err := e.schemas.UpdateContentType(e.ctx, "nope", vehicleCT()); errs.KindOf(err) != errs.KindNotFound {
-		t.Errorf("update tidak ada: %v", err)
+		t.Errorf("update of missing record: %v", err)
 	}
 }
 
@@ -57,7 +57,7 @@ func TestIndexFailureIsUnavailableButSaved(t *testing.T) {
 		t.Fatalf("err = %v", err)
 	}
 	if _, err := e.schemas.GetContentType(e.ctx, "location"); err != nil {
-		t.Error("schema tetap tersimpan walau index gagal")
+		t.Error("schema must still be saved even if the index fails")
 	}
 }
 
@@ -65,16 +65,16 @@ func TestDeleteContentType(t *testing.T) {
 	e := newEnv()
 	e.seed()
 	if err := e.schemas.DeleteContentType(e.ctx, "location"); errs.KindOf(err) != errs.KindConflict {
-		t.Errorf("location dipakai relation vehicle: %v", err)
+		t.Errorf("location is used by relation vehicle: %v", err)
 	}
 	if err := e.schemas.DeleteContentType(e.ctx, "vehicle"); err != nil {
 		t.Fatal(err)
 	}
 	if e.index.Exists("vehicle") {
-		t.Error("index harus di-drop")
+		t.Error("index must be dropped")
 	}
 	if err := e.schemas.DeleteContentType(e.ctx, "vehicle"); errs.KindOf(err) != errs.KindNotFound {
-		t.Errorf("hapus dua kali: %v", err)
+		t.Errorf("delete twice: %v", err)
 	}
 }
 
@@ -90,7 +90,7 @@ func TestComponentLifecycle(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := e.schemas.DeleteComponent(e.ctx, "address"); errs.KindOf(err) != errs.KindConflict {
-		t.Errorf("component dipakai: %v", err)
+		t.Errorf("component in use: %v", err)
 	}
 	upd := &content.Component{Label: "Alamat Baru", Fields: addr.Fields}
 	if c, err := e.schemas.UpdateComponent(e.ctx, "address", upd); err != nil || c.UID != "address" || !c.CreatedAt.Equal(t0) {

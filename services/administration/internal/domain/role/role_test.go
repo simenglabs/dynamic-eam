@@ -10,24 +10,24 @@ import (
 var now = time.Date(2026, 10, 19, 10, 0, 0, 0, time.UTC)
 
 func TestNewNormalizesPermissions(t *testing.T) {
-	r, err := New("teknisi", " Teknisi ", "Lapangan", Permissions{"assets/tnd": {"read", "download", "read"}, "renkon/prk": {}}, now)
+	r, err := New("teknisi", " Teknisi ", "Field", Permissions{"assets/tnd": {"read", "download", "read"}, "renkon/prk": {}}, now)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if r.Name != "Teknisi" || len(r.Permissions["assets/tnd"]) != 2 {
-		t.Errorf("normalisasi salah: %+v", r)
+		t.Errorf("wrong normalization: %+v", r)
 	}
 	if _, ok := r.Permissions["renkon/prk"]; ok {
-		t.Error("menu tanpa aksi harus dibuang")
+		t.Error("menu without actions must be dropped")
 	}
 }
 
 func TestNewRejectsInvalid(t *testing.T) {
 	cases := map[string]func() (*Role, error){
-		"id salah":    func() (*Role, error) { return New("Bad ID", "x", "", nil, now) },
-		"nama kosong": func() (*Role, error) { return New("ok", " ", "", nil, now) },
-		"aksi asing":  func() (*Role, error) { return New("ok", "x", "", Permissions{"assets/tnd": {"approve"}}, now) },
-		"kunci asing": func() (*Role, error) { return New("ok", "x", "", Permissions{"../etc": {"read"}}, now) },
+		"bad id":     func() (*Role, error) { return New("Bad ID", "x", "", nil, now) },
+		"empty name": func() (*Role, error) { return New("ok", " ", "", nil, now) },
+		"bad action": func() (*Role, error) { return New("ok", "x", "", Permissions{"assets/tnd": {"approve"}}, now) },
+		"bad key":    func() (*Role, error) { return New("ok", "x", "", Permissions{"../etc": {"read"}}, now) },
 	}
 	for name, f := range cases {
 		if _, err := f(); errs.KindOf(err) != errs.KindInvalid {
@@ -48,34 +48,34 @@ func TestSystemRoleImmutable(t *testing.T) {
 			continue
 		}
 		if err := r.Edit("Hack", "", nil, now); errs.KindOf(err) != errs.KindForbidden {
-			t.Errorf("edit role sistem: %v", err)
+			t.Errorf("edit system role: %v", err)
 		}
 		if err := r.CanDelete(0); errs.KindOf(err) != errs.KindForbidden {
-			t.Errorf("hapus role sistem: %v", err)
+			t.Errorf("delete system role: %v", err)
 		}
 		return
 	}
-	t.Fatal("Defaults harus berisi superadmin")
+	t.Fatal("Defaults must contain superadmin")
 }
 
 func TestCanDeleteInUse(t *testing.T) {
 	r, _ := New("teknisi", "Teknisi", "", nil, now)
 	if errs.KindOf(r.CanDelete(2)) != errs.KindConflict {
-		t.Error("role dipakai user harus ditolak dihapus")
+		t.Error("role in use by users must not be deletable")
 	}
 	if r.CanDelete(0) != nil {
-		t.Error("role tidak dipakai boleh dihapus")
+		t.Error("unused role may be deleted")
 	}
 }
 
 func TestEditUpdatesFields(t *testing.T) {
 	r, _ := New("teknisi", "Teknisi", "", nil, now)
 	later := now.Add(time.Hour)
-	if err := r.Edit("Teknisi Senior", "baru", Permissions{"assets/tnd": {"read"}}, later); err != nil {
+	if err := r.Edit("Teknisi Senior", "new", Permissions{"assets/tnd": {"read"}}, later); err != nil {
 		t.Fatal(err)
 	}
-	if r.Name != "Teknisi Senior" || r.Description != "baru" || len(r.Permissions) != 1 || !r.UpdatedAt.Equal(later) {
-		t.Errorf("edit salah: %+v", r)
+	if r.Name != "Teknisi Senior" || r.Description != "new" || len(r.Permissions) != 1 || !r.UpdatedAt.Equal(later) {
+		t.Errorf("wrong edit: %+v", r)
 	}
 }
 

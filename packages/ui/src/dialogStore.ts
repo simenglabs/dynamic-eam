@@ -1,11 +1,11 @@
-// Antrean dialog (satu tampil, sisanya menunggu). Murni tanpa React; diuji di dialogStore.test.ts.
+// Dialog queue (one shown, the rest wait). Pure, no React; tested in dialogStore.test.ts.
 export type DialogRequest = {
   kind: "alert" | "confirm" | "prompt";
   title: string;
   message?: string;
   confirmText?: string;
   cancelText?: string;
-  danger?: boolean; // tombol konfirmasi merah (hapus, dsb)
+  danger?: boolean; // red confirm button (delete, etc.)
   placeholder?: string; // prompt
   defaultValue?: string; // prompt
   multiline?: boolean; // prompt: textarea
@@ -25,7 +25,7 @@ export function createDialogStore() {
       });
     },
     current: (): DialogRequest | undefined => queue[0],
-    // confirm: boolean, prompt: string | null, alert: diabaikan.
+    // confirm: boolean, prompt: string | null, alert: ignored.
     answer(value: unknown) {
       const head = queue.shift();
       if (!head) return;

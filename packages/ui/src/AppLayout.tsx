@@ -7,7 +7,7 @@ import { buildMenu, type DynamicMenu } from "./menu";
 
 export function RootHtml({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="id">
+    <html lang="en">
       <body>
         {children}
         <DialogHost />
@@ -16,15 +16,15 @@ export function RootHtml({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Sidebar + area konten. zone = zone app yang sedang render (undefined = shell).
+// Sidebar + content area. zone = the zone app currently rendering (undefined = shell).
 export async function Chrome({ zone, children }: { zone?: string; children: React.ReactNode }) {
   const me = await getMe();
-  // Service dynamic mati tidak boleh merusak halaman lain: menu dinamis cukup tidak tampil.
+  // A down dynamic service must not break other pages: dynamic menus are simply hidden.
   const dynamic = me ? await api<DynamicMenu[]>("dynamic", "/content-types").catch(() => []) : [];
   const menu = buildMenu(dynamic, me?.access ?? null);
   return (
     <>
-      {/* Suspense: Sidebar membaca ?view= (useSearchParams) */}
+      {/* Suspense: Sidebar reads ?view= (useSearchParams) */}
       <Suspense>
         <Sidebar zone={zone} menu={menu} />
       </Suspense>
@@ -36,7 +36,7 @@ export async function Chrome({ zone, children }: { zone?: string; children: Reac
   );
 }
 
-// Root layout untuk zone.
+// Root layout for a zone.
 export function AppLayout({ zone, children }: { zone: string; children: React.ReactNode }) {
   return (
     <RootHtml>

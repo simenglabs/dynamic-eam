@@ -11,17 +11,17 @@ type Labels = { options: Record<string, Option[]>; domains: Record<string, Domai
 function cell(f: Field, v: unknown, lk: Labels) {
   if (v === undefined || v === null || v === "" || (Array.isArray(v) && v.length === 0)) return <span className="text-muted-foreground">–</span>;
   if (Array.isArray(v)) return v.map((x) => label(f, x, lk)).join(", ");
-  if (f.type === "boolean") return v ? <Badge color="green">Ya</Badge> : <Badge>Tidak</Badge>;
+  if (f.type === "boolean") return v ? <Badge color="green">Yes</Badge> : <Badge>No</Badge>;
   if (f.type === "select") return <Badge color="blue">{String(v)}</Badge>;
   if (f.type === "domain") return <Badge color="blue">{label(f, v, lk)}</Badge>;
   return label(f, v, lk);
 }
 
 function label(f: Field, v: unknown, lk: Labels): string {
-  if (f.type === "relation") return lk.options[f.target!]?.find((o) => o.id === v)?.label ?? "…"; // ponytail: hanya 100 opsi pertama per target
+  if (f.type === "relation") return lk.options[f.target!]?.find((o) => o.id === v)?.label ?? "…"; // ponytail: only the first 100 options per target
   if (f.type === "domain") return lk.domains[f.domain!]?.find((d) => d.valueId === v)?.valueDescription ?? String(v);
-  if (f.type === "date") return new Date(String(v)).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
-  if (f.type === "number" && typeof v === "number") return v.toLocaleString("id-ID");
+  if (f.type === "date") return new Date(String(v)).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  if (f.type === "number" && typeof v === "number") return v.toLocaleString("en-GB");
   return String(v);
 }
 
@@ -40,12 +40,11 @@ export default async function Entries({ params, searchParams }: {
   if (isElement(res)) return res;
   const detail = (id: string) => `/c/${uid}/${id}${v ? `?view=${view}` : ""}`;
 
-  // Kolom: label (display field / template) dulu, lalu maksimal 4 field skalar lain.
-  // field yang sudah tampil di kolom label (display field / template "{kode} - {nama}") tidak diulang
+  // Fields already shown in the label column (display field / template "{code} - {name}") are not repeated.
   const refs = [...ct.displayField.matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
   const inTitle = new Set(refs.length ? refs : [ct.displayField]);
-  const titleCol: Field = { name: "__display", label: inTitle.size === 1 ? (ct.fields.find((f) => inTitle.has(f.name))?.label ?? "Data") : "Data", type: "text", required: false };
-  // Kolom: label dulu, lalu 5 field pertama yang bisa ditampilkan (relasi & domain pakai label, bukan ID).
+  const titleCol: Field = { name: "__display", label: inTitle.size === 1 ? (ct.fields.find((f) => inTitle.has(f.name))?.label ?? "Record") : "Record", type: "text", required: false };
+  // Columns: label first, then the first 5 listable fields (relations & domains show labels, not IDs).
   const cols = [titleCol, ...ct.fields.filter((f) => !inTitle.has(f.name) && LISTABLE.includes(f.type)).slice(0, 5)];
   const targets = [...new Set(cols.filter((f) => f.type === "relation").map((f) => f.target!))];
   const codes = [...new Set(cols.filter((f) => f.type === "domain").map((f) => f.domain!))];
@@ -63,10 +62,10 @@ export default async function Entries({ params, searchParams }: {
       <div className="px-8 py-4">
         <Card>
           <div className="flex items-center justify-between border-b pb-4">
-            <h2 className="text-lg font-bold">{title} <span className="text-muted-foreground text-sm font-normal">· {res.total} data</span></h2>
+            <h2 className="text-lg font-bold">{title} <span className="text-muted-foreground text-sm font-normal">· {res.total} records</span></h2>
             <div className="flex gap-2">
               {!v && can(me, `ct/${uid}`, "download") && (
-                // <a> biasa: file dari service Go lewat rewrite shell, bukan halaman Next.
+                // plain <a>: file comes from the Go service via the shell rewrite, not a Next page.
                 <a href={`/api/dynamic/content-types/${uid}/export`} download>
                   <Button variant="outline" tabIndex={-1}><Download /> Download CSV</Button>
                 </a>
@@ -81,12 +80,12 @@ export default async function Entries({ params, searchParams }: {
               {v && <input type="hidden" name="view" value={view} />}
               {status && <input type="hidden" name="status" value={status} />}
               <Search className="text-muted-foreground absolute top-3 left-2.5 size-4" />
-              <Input type="search" name="q" defaultValue={q} placeholder="Cari lalu Enter…" aria-label={`Cari ${ct.label}`} className="w-60 pl-8" />
+              <Input type="search" name="q" defaultValue={q} placeholder="Search and press Enter…" aria-label={`Search ${ct.label}`} className="w-60 pl-8" />
             </form>
-            {/* filter status (bukan di view: view sudah memfilter status) */}
+            {/* status filter (not in views: a view already filters by status) */}
             {ct.workflow && !v && (
               <nav aria-label="Filter status" className="flex flex-wrap gap-1">
-                {[{ key: "", label: "Semua" }, ...ct.workflow.states].map((st) => (
+                {[{ key: "", label: "All" }, ...ct.workflow.states].map((st) => (
                   <Link key={st.key} href={link({ status: st.key, page: "" })} aria-current={status === st.key ? "page" : undefined}
                     className={"rounded-full border px-3 py-1 text-sm " + (status === st.key ? "border-primary bg-primary text-white" : "text-slate-600 hover:bg-slate-100")}>
                     {st.label}
@@ -94,7 +93,7 @@ export default async function Entries({ params, searchParams }: {
                 ))}
               </nav>
             )}
-            {(q || status) && <Link href={link({ q: "", status: "" })} className="text-primary text-sm">Reset filter</Link>}
+            {(q || status) && <Link href={link({ q: "", status: "" })} className="text-primary text-sm">Reset filters</Link>}
           </div>
           <Table>
             <thead><tr>{cols.map((f) => <Th key={f.name}>{f.label}</Th>)}{ct.workflow && <Th>Status</Th>}</tr></thead>
@@ -120,8 +119,8 @@ export default async function Entries({ params, searchParams }: {
               {res.items.length === 0 && (
                 <tr>
                   <td colSpan={cols.length + (ct.workflow ? 1 : 0)} className="text-muted-foreground p-8 text-center">
-                    {q || status ? "Tidak ada data yang cocok dengan filter." : "Belum ada data."}
-                    {canCreate && !q && !status && <> <Link href={`/c/${uid}/new`} className="text-primary underline">Tambah {ct.label} pertama</Link></>}
+                    {q || status ? "No records match the filters." : "No records yet."}
+                    {canCreate && !q && !status && <> <Link href={`/c/${uid}/new`} className="text-primary underline">Add the first {ct.label}</Link></>}
                   </td>
                 </tr>
               )}

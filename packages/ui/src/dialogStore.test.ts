@@ -3,13 +3,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createDialogStore } from "./dialogStore.ts";
 
-test("confirm: resolve true/false, antrean berurutan", async () => {
+test("confirm: resolves true/false, queued in order", async () => {
   const s = createDialogStore();
   const seen: (string | undefined)[] = [];
   s.subscribe(() => seen.push(s.current()?.title));
   const a = s.open({ kind: "confirm", title: "A" });
   const b = s.open({ kind: "confirm", title: "B" });
-  assert.equal(s.current()?.title, "A", "dialog kedua menunggu yang pertama");
+  assert.equal(s.current()?.title, "A", "second dialog waits for the first");
   s.answer(true);
   assert.equal(s.current()?.title, "B");
   s.answer(false);
@@ -19,17 +19,17 @@ test("confirm: resolve true/false, antrean berurutan", async () => {
   assert.deepEqual(seen, ["A", "B", undefined]);
 });
 
-test("prompt: teks atau null saat batal", async () => {
+test("prompt: text, or null on cancel", async () => {
   const s = createDialogStore();
-  const ok = s.open({ kind: "prompt", title: "Catatan" });
-  s.answer("mohon cek");
-  assert.equal(await ok, "mohon cek");
-  const cancel = s.open({ kind: "prompt", title: "Catatan" });
+  const ok = s.open({ kind: "prompt", title: "Note" });
+  s.answer("please check");
+  assert.equal(await ok, "please check");
+  const cancel = s.open({ kind: "prompt", title: "Note" });
   s.answer(null);
   assert.equal(await cancel, null);
 });
 
-test("answer tanpa dialog aktif diabaikan", () => {
+test("answer without an active dialog is ignored", () => {
   const s = createDialogStore();
   assert.doesNotThrow(() => s.answer(true));
 });

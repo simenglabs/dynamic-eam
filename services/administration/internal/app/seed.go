@@ -8,8 +8,8 @@ import (
 	"eam/services/administration/internal/domain/user"
 )
 
-// Seed membuat role bawaan (bila belum ada) dan superadmin "admin" bila belum ada superadmin.
-// adminPassword kosong = dibuat acak; password yang dibuat dikembalikan (kosong bila tidak membuat user).
+// Seed creates the built-in roles (if missing) and superadmin "admin" if no superadmin exists.
+// Empty adminPassword = generated randomly; the created password is returned (empty if no user was created).
 func Seed(ctx context.Context, d Deps, adminPassword string) (generated string, err error) {
 	for _, r := range role.Defaults(d.Now()) {
 		if err := d.Roles.InsertIfMissing(ctx, r); err != nil {

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # Usage: scripts/new-zone.sh <zone> <web-port> <api-port>
-#        SERVICE_ONLY=1 scripts/new-zone.sh <zone> <web-port> <api-port>   # hanya service Go
-# Buat zone Next.js (apps/<zone>, basePath /<zone>) + service Go (services/<zone>).
-# Setelah itu tambahkan entry zone di packages/ui/src/menu.ts dengan port yang sama.
+#        SERVICE_ONLY=1 scripts/new-zone.sh <zone> <web-port> <api-port>   # Go service only
+# Creates a Next.js zone (apps/<zone>, basePath /<zone>) + Go service (services/<zone>).
+# Then add the zone entry in packages/ui/src/menu.ts with the same ports.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 Z=$1 WEB=$2 API=$3
 if [ "${SERVICE_ONLY:-}" != 1 ]; then
-[ -e "apps/$Z" ] && { echo "apps/$Z sudah ada"; exit 1; }
+[ -e "apps/$Z" ] && { echo "apps/$Z already exists"; exit 1; }
 
 mkdir -p "apps/$Z/app/[[...slug]]"
 cat > "apps/$Z/package.json" <<EOF
@@ -88,10 +88,10 @@ func main() {
 }
 EOF
 cat > "services/$Z/internal/http/handler.go" <<EOF
-// Package http: adapter HTTP service $Z.
-// Struktur DDD saat menambah fitur: internal/domain/<aggregate> (entity + port repository, test dulu),
-// internal/app (use case), internal/infra (mongo, dsb), lalu handler di sini dengan
-// az.Require("$Z/<sub menu>", common.Read) — kunci = path di packages/ui/src/menu.ts. Contoh lengkap: services/administration.
+// Package http: HTTP adapter for service $Z.
+// DDD layout when adding features: internal/domain/<aggregate> (entity + repository port, tests first),
+// internal/app (use cases), internal/infra (mongo, etc.), then handlers here with
+// az.Require("$Z/<submenu>", common.Read) — key = path in packages/ui/src/menu.ts. Full example: services/administration.
 package http
 
 import (
@@ -142,4 +142,4 @@ EOF
 (cd "services/$Z" && { [ -f go.mod ] || go mod init "eam/services/$Z" >/dev/null 2>&1; } \
   && go mod edit -require=eam/services/common@v0.0.0 -replace=eam/services/common=../common && go get github.com/gin-gonic/gin@v1.12.0 >/dev/null 2>&1 && go mod tidy >/dev/null 2>&1)
 (cd services && { [ -f go.work ] || go work init; } && go work use "./$Z")
-echo "zone $Z dibuat (web :$WEB, api :$API). Tambahkan entry di packages/ui/src/menu.ts."
+echo "zone $Z created (web :$WEB, api :$API). Add an entry in packages/ui/src/menu.ts."

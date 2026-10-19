@@ -7,7 +7,7 @@ import (
 )
 
 func withWhere(w ...Condition) ContentType {
-	ct := vehicle() // location = relasi ke location
+	ct := vehicle() // location = relation to location
 	ct.Fields[4].Where = w
 	return ct
 }
@@ -20,21 +20,21 @@ func TestWhereValidation(t *testing.T) {
 		}
 	}
 	for name, w := range map[string][]Condition{
-		"field kosong":      {{"", "x"}},
-		"nilai kosong":      {{"site", ""}},
-		"ref tidak ada":     {{"site", "{nope}"}},
-		"ref diri sendiri":  {{"site", "{location}"}},
-		"nama field asing!": {{"si te", "x"}},
+		"empty field":         {{"", "x"}},
+		"empty value":         {{"site", ""}},
+		"missing ref":         {{"site", "{nope}"}},
+		"self ref":            {{"site", "{location}"}},
+		"invalid field name!": {{"si te", "x"}},
 	} {
 		ct := withWhere(w...)
 		if errs.KindOf(ct.Validate(catalog())) != errs.KindInvalid {
-			t.Errorf("%s harus ditolak", name)
+			t.Errorf("%s must be rejected", name)
 		}
 	}
 	ct := vehicle()
 	ct.Fields[0].Where = []Condition{{"a", "b"}} // text
 	if errs.KindOf(ct.Validate(catalog())) != errs.KindInvalid {
-		t.Error("where hanya untuk relasi")
+		t.Error("where is only for relations")
 	}
 }
 
@@ -45,19 +45,19 @@ func TestWhereFiltersAndMatches(t *testing.T) {
 		t.Fatalf("filters: %+v", got)
 	}
 	if got := f.Filters(map[string]any{}); len(got) != 2 {
-		t.Errorf("ref kosong = kondisi diabaikan: %+v", got)
+		t.Errorf("empty ref = condition ignored: %+v", got)
 	}
 	e := &Entry{Data: map[string]any{"site": "S1", "kind": "GUDANG"}, Status: "APPROVED"}
 	if !Matches(e, f.Filters(map[string]any{"site": "S1"})) {
-		t.Error("harus cocok")
+		t.Error("must match")
 	}
 	if Matches(e, f.Filters(map[string]any{"site": "S2"})) {
-		t.Error("site beda")
+		t.Error("different site")
 	}
 	if !Matches(&Entry{Data: map[string]any{"tags": []any{"A", "B"}}}, []Scope{{"tags", []string{"B"}}}) {
-		t.Error("field list: cocok bila salah satu")
+		t.Error("list field: matches if any element matches")
 	}
 	if !Matches(&Entry{Data: map[string]any{"active": true}}, []Scope{{"active", []string{"true"}}}) {
-		t.Error("boolean dibanding sebagai teks")
+		t.Error("boolean compared as text")
 	}
 }

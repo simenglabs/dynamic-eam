@@ -34,7 +34,7 @@ func TestCreateSetsInitialStatus(t *testing.T) {
 	withWorkflow(e)
 	v, err := e.entries.Create(e.ctx, "vehicle", map[string]any{"plate": "L 1"}, u1)
 	if err != nil || v.Status != "draft" {
-		t.Fatalf("status awal: %+v %v", v, err)
+		t.Fatalf("initial status: %+v %v", v, err)
 	}
 }
 
@@ -45,25 +45,25 @@ func TestTransitionFlow(t *testing.T) {
 	v, _ := e.entries.Create(e.ctx, "vehicle", map[string]any{"plate": "L 1"}, u1)
 
 	if _, err := e.entries.Transition(e.ctx, "vehicle", v.ID, "approve", u2, "", nil); errs.KindOf(err) != errs.KindInvalid {
-		t.Errorf("approve dari draft: %v", err)
+		t.Errorf("approve from draft: %v", err)
 	}
 	v, err := e.entries.Transition(e.ctx, "vehicle", v.ID, "submit", u1, "mohon dicek", nil)
 	if err != nil || v.Status != "submitted" {
 		t.Fatalf("submit: %+v %v", v, err)
 	}
 	if len(v.History) != 1 || v.History[0].From != "draft" || v.History[0].To != "submitted" || v.History[0].By != "u1" || v.History[0].Note != "mohon dicek" {
-		t.Errorf("riwayat: %+v", v.History)
+		t.Errorf("history: %+v", v.History)
 	}
 
-	// Status submitted tidak editable: update & delete ditolak.
+	// Status submitted is not editable: update & delete are rejected.
 	if _, err := e.entries.Update(e.ctx, "vehicle", v.ID, map[string]any{"plate": "L 2"}, u1); errs.KindOf(err) != errs.KindForbidden {
-		t.Errorf("update saat submitted: %v", err)
+		t.Errorf("update while submitted: %v", err)
 	}
 	if err := e.entries.Delete(e.ctx, "vehicle", v.ID, u1); errs.KindOf(err) != errs.KindForbidden {
-		t.Errorf("delete saat submitted: %v", err)
+		t.Errorf("delete while submitted: %v", err)
 	}
 
-	// View approval hanya berisi status submitted.
+	// The approval view only contains status submitted.
 	e.entries.Create(e.ctx, "vehicle", map[string]any{"plate": "L 9"}, u1)
 	page, _ := e.entries.List(e.ctx, "vehicle", Query{Page: 1, Size: 10, States: []string{"submitted"}}, u1)
 	if page.Total != 1 || page.Items[0].ID != v.ID {
@@ -83,7 +83,7 @@ func TestUpdateKeepsStatusAndHistory(t *testing.T) {
 	v, _ := e.entries.Create(e.ctx, "vehicle", map[string]any{"plate": "L 1"}, u1)
 	v, err := e.entries.Update(e.ctx, "vehicle", v.ID, map[string]any{"plate": "L 1A"}, u1)
 	if err != nil || v.Status != "draft" {
-		t.Errorf("update tidak boleh mengubah status: %+v %v", v, err)
+		t.Errorf("update must not change the status: %+v %v", v, err)
 	}
 }
 
@@ -91,7 +91,7 @@ func TestTransitionWithoutWorkflow(t *testing.T) {
 	e := newEnv()
 	loc := e.seed()
 	if _, err := e.entries.Transition(e.ctx, "location", loc, "submit", u1, "", nil); errs.KindOf(err) != errs.KindNotFound {
-		t.Errorf("content type tanpa workflow: %v", err)
+		t.Errorf("content type without workflow: %v", err)
 	}
 }
 
@@ -117,24 +117,24 @@ func TestTransitionRequiresInputs(t *testing.T) {
 	}
 	v, _ := e.entries.Create(e.ctx, "vehicle", map[string]any{"plate": "L 1"}, u1)
 	bad := map[string]map[string]any{
-		"tanpa isian": nil,
-		"file kosong": {"jenis": "BA"},
-		"opsi asing":  {"jenis": "KTP", "file": m.ID},
-		"file asing":  {"jenis": "BA", "file": "nope"},
-		"field asing": {"jenis": "BA", "file": m.ID, "x": 1},
+		"no input":       nil,
+		"empty file":     {"jenis": "BA"},
+		"unknown option": {"jenis": "KTP", "file": m.ID},
+		"unknown file":   {"jenis": "BA", "file": "nope"},
+		"unknown field":  {"jenis": "BA", "file": m.ID, "x": 1},
 	}
 	for name, data := range bad {
 		if _, err := e.entries.Transition(e.ctx, "vehicle", v.ID, "submit", u1, "", data); errs.KindOf(err) != errs.KindInvalid {
-			t.Errorf("%s harus ditolak: %v", name, err)
+			t.Errorf("%s must be rejected: %v", name, err)
 		}
 	}
 	v, err = e.entries.Transition(e.ctx, "vehicle", v.ID, "submit", u1, "ok", map[string]any{"jenis": "BA", "file": m.ID, "ket": "lengkap"})
 	if err != nil || v.Status != "submitted" {
-		t.Fatalf("transisi: %+v %v", v, err)
+		t.Fatalf("transition: %+v %v", v, err)
 	}
 	revs, _ := e.entries.History(e.ctx, "vehicle", v.ID, u1)
 	last := revs[len(revs)-1]
 	if last.Transition != "submit" || last.Data["jenis"] != "BA" || last.Data["file"] != m.ID || last.Data["ket"] != "lengkap" {
-		t.Errorf("isian tercatat di riwayat: %+v", last)
+		t.Errorf("input recorded in history: %+v", last)
 	}
 }

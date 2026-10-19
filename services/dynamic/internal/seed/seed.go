@@ -1,5 +1,5 @@
 // Package seed: definisi content type bawaan (format JSON = API /content-types).
-// Dibuat saat service start bila belum ada; yang sudah ada tidak ditimpa.
+// Created at service start when missing; existing ones are never overwritten.
 package seed
 
 import _ "embed"
@@ -13,7 +13,7 @@ var (
 	profile []byte
 )
 
-// Files: nama seed -> isi JSON. Tambah menu bawaan baru = tambah file + entry di sini & di Order.
+// Files: seed name -> JSON content. New built-in menu = add a file + an entry here and in Order.
 var Files = map[string][]byte{"assets": assets, "master": master, "profile": profile}
 
 // Order: master dulu (Domain, Site, Organization dipakai seed lain).

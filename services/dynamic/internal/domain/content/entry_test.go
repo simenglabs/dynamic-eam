@@ -22,41 +22,41 @@ func TestValidateEntryNormalizesAndCollectsRefs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out["status"] != "Aktif" {
-		t.Error("default harus diisi saat create")
+	if out["status"] != "Active" {
+		t.Error("default must be filled on create")
 	}
 	if p := out["photos"].([]string); len(p) != 2 {
-		t.Errorf("media duplikat harus dibuang: %v", p)
+		t.Errorf("duplicate media must be dropped: %v", p)
 	}
 	if refs.Relations["location"][0] != "L1" || len(refs.Media) != 2 {
 		t.Errorf("refs: %+v", refs)
 	}
 	if _, ok := out["active"]; ok {
-		t.Error("field kosong opsional tidak ikut disimpan")
+		t.Error("empty optional fields are not saved")
 	}
 }
 
 func TestDefaultNotAppliedOnUpdate(t *testing.T) {
 	out, _, err := ValidateEntry(vehicle().Fields, parse(`{"plate":"L 1"}`), catalog().Components, false)
 	if err != nil || out["status"] != nil {
-		t.Errorf("update tidak mengisi default: %v %v", out, err)
+		t.Errorf("update does not fill defaults: %v %v", out, err)
 	}
 }
 
 func TestValidateEntryRejects(t *testing.T) {
 	for _, s := range []string{
-		`{}`,                                                   // plate wajib
-		`{"plate":""}`,                                         // kosong = tidak diisi
-		`{"plate":"A","extra":1}`,                              // field asing
-		`{"plate":"A","status":"Hilang"}`,                      // select di luar opsi
-		`{"plate":"A","since":"19-10-2026"}`,                   // format tanggal
-		`{"plate":"A","active":"ya"}`,                          // bukan bool
-		`{"plate":123}`,                                        // bukan teks
-		`{"plate":"A","photos":"m1"}`,                          // multiple harus list
-		`{"plate":"A","location":["L1"]}`,                      // single harus string
-		`{"plate":"A","addresses":[{"zip":1}]}`,                // street wajib di component
-		`{"plate":"A","addresses":{"street":"x"}}`,             // repeatable harus list
-		`{"plate":"A","addresses":[{"street":"x","asing":1}]}`, // field asing di component
+		`{}`,                                                     // plate is required
+		`{"plate":""}`,                                           // empty = not filled
+		`{"plate":"A","extra":1}`,                                // unknown field
+		`{"plate":"A","status":"Lost"}`,                          // select outside options
+		`{"plate":"A","since":"19-10-2026"}`,                     // date format
+		`{"plate":"A","active":"yes"}`,                           // not a bool
+		`{"plate":123}`,                                          // not text
+		`{"plate":"A","photos":"m1"}`,                            // multiple must be a list
+		`{"plate":"A","location":["L1"]}`,                        // single must be a string
+		`{"plate":"A","addresses":[{"zip":1}]}`,                  // street is required in component
+		`{"plate":"A","addresses":{"street":"x"}}`,               // repeatable must be a list
+		`{"plate":"A","addresses":[{"street":"x","unknown":1}]}`, // unknown field in component
 	} {
 		if _, _, err := ValidateEntry(vehicle().Fields, parse(s), catalog().Components, true); errs.KindOf(err) != errs.KindInvalid {
 			t.Errorf("%s: err = %v, want invalid", s, err)
@@ -70,7 +70,7 @@ func TestTextLengthLimit(t *testing.T) {
 		long[i] = 'x'
 	}
 	if _, _, err := ValidateEntry(vehicle().Fields, map[string]any{"plate": string(long)}, nil, true); err == nil {
-		t.Error("text > 255 karakter harus ditolak")
+		t.Error("text > 255 characters must be rejected")
 	}
 }
 
@@ -82,7 +82,7 @@ func TestNumberAcceptsIntegerKinds(t *testing.T) {
 			t.Errorf("%T: %v", v, err)
 		}
 		if _, ok := out["n"].(float64); !ok {
-			t.Errorf("%T harus dinormalkan ke float64", v)
+			t.Errorf("%T must be normalized to float64", v)
 		}
 	}
 }

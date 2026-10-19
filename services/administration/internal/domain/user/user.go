@@ -1,4 +1,4 @@
-// Package user: aggregate User (akun login) beserta aturan validasi & login.
+// Package user: User aggregate (login account) with validation & login rules.
 package user
 
 import (
@@ -14,16 +14,16 @@ const (
 	MaxFailedLogins = 5
 	SuperAdminRole  = "superadmin"
 	minPassword     = 8
-	maxPassword     = 72 // batas bcrypt
+	maxPassword     = 72 // bcrypt limit
 )
 
 var (
-	ErrBadCredentials = errs.Unauthorized("username atau password salah")
-	ErrLocked         = errs.Unauthorized("akun terkunci, hubungi administrator")
-	ErrInactive       = errs.Unauthorized("akun tidak aktif")
+	ErrBadCredentials = errs.Unauthorized("wrong username or password")
+	ErrLocked         = errs.Unauthorized("account is locked, contact the administrator")
+	ErrInactive       = errs.Unauthorized("account is inactive")
 )
 
-// Hasher: port hashing password (implementasi bcrypt di infra/crypto).
+// Hasher: password hashing port (bcrypt implementation in infra/crypto).
 type Hasher interface {
 	Hash(password string) ([]byte, error)
 	Compare(hash []byte, password string) bool
@@ -49,7 +49,7 @@ type NewParams struct {
 	Inactive                               bool
 }
 
-// EditParams: Password kosong = tidak diubah; Active/Locked nil = tidak diubah.
+// EditParams: empty Password = unchanged; nil Active/Locked = unchanged.
 type EditParams struct {
 	DisplayName, Email, Password string
 	Roles                        []string
@@ -59,7 +59,7 @@ type EditParams struct {
 func New(id string, p NewParams, h Hasher, now time.Time) (*User, error) {
 	u := &User{ID: id, Username: strings.TrimSpace(p.Username), Active: !p.Inactive, CreatedAt: now}
 	if u.Username == "" {
-		return nil, errs.Invalid("username wajib diisi")
+		return nil, errs.Invalid("username is required")
 	}
 	if err := u.apply(p.DisplayName, p.Email, p.Roles, now); err != nil {
 		return nil, err
@@ -92,13 +92,13 @@ func (u *User) Edit(p EditParams, h Hasher, now time.Time) error {
 func (u *User) apply(displayName, email string, roles []string, now time.Time) error {
 	displayName, email = strings.TrimSpace(displayName), strings.TrimSpace(email)
 	if displayName == "" {
-		return errs.Invalid("nama wajib diisi")
+		return errs.Invalid("name is required")
 	}
 	if _, err := mail.ParseAddress(email); err != nil {
-		return errs.Invalid("email tidak valid")
+		return errs.Invalid("email is invalid")
 	}
 	if len(roles) == 0 {
-		return errs.Invalid("minimal satu role")
+		return errs.Invalid("at least one role is required")
 	}
 	u.DisplayName, u.Email, u.Roles, u.UpdatedAt = displayName, email, slices.Compact(slices.Sorted(slices.Values(roles))), now
 	return nil
@@ -106,10 +106,10 @@ func (u *User) apply(displayName, email string, roles []string, now time.Time) e
 
 func (u *User) setPassword(h Hasher, pw string) error {
 	if len(pw) < minPassword {
-		return errs.Invalid("password minimal %d karakter", minPassword)
+		return errs.Invalid("password must be at least %d characters", minPassword)
 	}
 	if len(pw) > maxPassword {
-		return errs.Invalid("password maksimal %d karakter", maxPassword)
+		return errs.Invalid("password must be at most %d characters", maxPassword)
 	}
 	hash, err := h.Hash(pw)
 	if err != nil {
@@ -119,7 +119,7 @@ func (u *User) setPassword(h Hasher, pw string) error {
 	return nil
 }
 
-// CheckLogin: urutan cek = terkunci, nonaktif, lalu password.
+// CheckLogin: check order = locked, inactive, then password.
 func (u *User) CheckLogin(h Hasher, pw string) error {
 	switch {
 	case u.Locked:

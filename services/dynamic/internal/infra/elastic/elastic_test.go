@@ -14,7 +14,7 @@ import (
 	"eam/services/dynamic/internal/domain/content"
 )
 
-// fakeES mencatat request dan membalas respons search tetap.
+// fakeES records requests and replies with a fixed search response.
 type fakeES struct {
 	mu   sync.Mutex
 	reqs []string // "METHOD path body"
@@ -65,12 +65,12 @@ func TestRebuildCreatesMappingAndBulkIndexes(t *testing.T) {
 		t.Fatal(err)
 	}
 	if f.find("DELETE /eam-ct-vehicle") == "" {
-		t.Error("index lama harus dihapus dulu")
+		t.Error("the old index must be deleted first")
 	}
 	put := f.find("PUT /eam-ct-vehicle ")
 	for _, want := range []string{`"plate":{"fields":{"keyword"`, `"year":{"type":"double"}`, `"status":{"type":"keyword"}`, `"addr":{"enabled":false`, `"workflowStatus":{"type":"keyword"}`, `"dynamic":false`} {
 		if !strings.Contains(put, want) {
-			t.Errorf("mapping tanpa %s: %s", want, put)
+			t.Errorf("mapping without %s: %s", want, put)
 		}
 	}
 	bulk := f.find("POST /_bulk")
@@ -86,14 +86,14 @@ func TestSearchQueryAndResult(t *testing.T) {
 		t.Fatal(err)
 	}
 	if page.Total != 1 || page.Items[0].ID != "e1" || page.Items[0].Data["plate"] != "L 1" || page.Items[0].Status != "draft" || page.Items[0].CreatedBy != "u1" {
-		t.Errorf("hasil: %+v", page.Items[0])
+		t.Errorf("result: %+v", page.Items[0])
 	}
 	var body map[string]any
 	json.Unmarshal([]byte(strings.SplitN(f.find("POST /eam-ct-vehicle/_search"), " ", 3)[2]), &body)
 	s, _ := json.Marshal(body)
 	for _, want := range []string{`"from":10`, `"size":10`, `"plate.keyword"`, `"workflowStatus":["submitted"]`, `"bool_prefix"`, `"plate","notes"`} {
 		if !strings.Contains(string(s), want) {
-			t.Errorf("query tanpa %s: %s", want, s)
+			t.Errorf("query without %s: %s", want, s)
 		}
 	}
 }
@@ -102,7 +102,7 @@ func TestSortOnlyOnKnownSortableFields(t *testing.T) {
 	x, f := setup(t)
 	x.Search(context.Background(), ct, content.Query{Page: 1, Size: 10, Sort: "addr:asc"})
 	if !strings.Contains(f.find("POST /eam-ct-vehicle/_search"), `"createdAt"`) {
-		t.Error("sort ke field component harus diabaikan (default createdAt)")
+		t.Error("sort on a component field must be ignored (default createdAt)")
 	}
 }
 
@@ -113,7 +113,7 @@ func TestErrorStatusReturnsError(t *testing.T) {
 	}))
 	defer srv.Close()
 	if _, err := New(srv.URL, "").Search(context.Background(), ct, content.Query{Page: 1, Size: 1}); err == nil {
-		t.Error("503 harus jadi error")
+		t.Error("503 must become an error")
 	}
 }
 
@@ -122,7 +122,7 @@ func TestMissingIndexIsEmptyPage(t *testing.T) {
 	defer srv.Close()
 	page, err := New(srv.URL, "").Search(context.Background(), ct, content.Query{Page: 1, Size: 1})
 	if err != nil || page.Total != 0 {
-		t.Errorf("index belum ada = kosong: %+v %v", page, err)
+		t.Errorf("missing index = empty: %+v %v", page, err)
 	}
 }
 
@@ -136,13 +136,13 @@ func TestRebuildSetsReplicaCount(t *testing.T) {
 		t.Fatal(err)
 	}
 	if put := f.find("PUT /eam-ct-vehicle "); !strings.Contains(put, `"number_of_replicas":0`) {
-		t.Errorf("settings replica tidak dikirim: %s", put)
+		t.Errorf("replica settings not sent: %s", put)
 	}
 }
 
 func TestDefaultReplicaIsOne(t *testing.T) {
 	if New("http://x", "").Replicas != 1 {
-		t.Error("default 1 replica (aman untuk cluster multi-node)")
+		t.Error("default 1 replica (safe for multi-node clusters)")
 	}
 }
 
@@ -159,7 +159,7 @@ func TestSearchScopeFilter(t *testing.T) {
 	x, f := setup(t)
 	x.Search(context.Background(), ct, content.Query{Page: 1, Size: 10, Scope: &content.Scope{Field: "site", Values: []string{"S1", "S2"}}})
 	if body := f.find("POST /eam-ct-vehicle/_search"); !strings.Contains(body, `{"terms":{"site":["S1","S2"]}}`) {
-		t.Errorf("filter site tidak dikirim: %s", body)
+		t.Errorf("site filter not sent: %s", body)
 	}
 }
 

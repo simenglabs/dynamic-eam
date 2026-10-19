@@ -18,17 +18,17 @@ export function LoginForm({ next }: { next: string }) {
       <div className="flex flex-col items-center gap-3 text-center">
         <LogoMark className="size-12" />
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-900">Masuk ke EAM</h1>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">Sign in to EAM</h1>
           <p className="text-sm text-slate-500">Asset Management</p>
         </div>
       </div>
       <input type="hidden" name="next" value={next} />
 
       <label className="flex flex-col gap-1.5 text-sm font-medium text-slate-700">
-        Email atau username
+        Email or username
         <span className="relative">
           <User className="text-muted-foreground absolute top-3 left-3 size-4" />
-          <Input name="username" defaultValue={state.username} autoComplete="username" required autoFocus placeholder="nama@perusahaan.co.id" className="w-full pl-10" />
+          <Input name="username" defaultValue={state.username} autoComplete="username" required autoFocus placeholder="name@company.com" className="w-full pl-10" />
         </span>
       </label>
 
@@ -37,7 +37,7 @@ export function LoginForm({ next }: { next: string }) {
         <span className="relative">
           <Lock className="text-muted-foreground absolute top-3 left-3 size-4" />
           <Input id="password" name="password" type={show ? "text" : "password"} autoComplete="current-password" required placeholder="password" className="w-full px-10" />
-          <button type="button" onClick={() => setShow(!show)} aria-label={show ? "Sembunyikan password" : "Tampilkan password"} className="text-muted-foreground absolute top-3 right-3">
+          <button type="button" onClick={() => setShow(!show)} aria-label={show ? "Hide password" : "Show password"} className="text-muted-foreground absolute top-3 right-3">
             {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
           </button>
         </span>
@@ -47,12 +47,12 @@ export function LoginForm({ next }: { next: string }) {
         <Alert aria-live="assertive">
           {state.error}
           {state.attemptsRemaining !== undefined && state.attemptsRemaining > 0 && (
-            <span className="block text-xs">Sisa percobaan login: {state.attemptsRemaining}</span>
+            <span className="block text-xs">Login attempts remaining: {state.attemptsRemaining}</span>
           )}
         </Alert>
       )}
 
-      <Button disabled={pending || !!state.redirectTo} className="w-full">{pending || state.redirectTo ? "Memproses..." : "Masuk"}</Button>
+      <Button disabled={pending || !!state.redirectTo} className="w-full">{pending || state.redirectTo ? "Processing..." : "Sign in"}</Button>
     </form>
   );
 }

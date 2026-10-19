@@ -26,7 +26,7 @@ func TestAutoFillOnSave(t *testing.T) {
 	}
 	v, err = e.entries.Update(e.ctx, "vehicle", v.ID, map[string]any{"plate": "L 1", "location": locB.ID, "locName": "Gudang A", "createdByName": "Budi"}, u2)
 	if err != nil || v.Data["locName"] != "Gudang B" || v.Data["createdByName"] != "Budi" {
-		t.Errorf("update: relasi berubah -> terkunci ikut berubah; tidak terkunci tetap: %+v %v", v, err)
+		t.Errorf("update: relation changed -> locked fields follow; unlocked stay: %+v %v", v, err)
 	}
 }
 
@@ -41,7 +41,7 @@ func TestActorForExpandsSiteHierarchyAndProfile(t *testing.T) {
 	if _, err := e.schemas.Ensure(e.ctx, nil, []*content.ContentType{site, prof}); err != nil {
 		t.Fatal(err)
 	}
-	// UID -> UP3 -> {ULP1, ULP2}; LAIN terpisah
+	// UID -> UP3 -> {ULP1, ULP2}; LAIN is separate
 	for _, s := range []struct{ id, parent string }{{"UID", ""}, {"UP3", "UID"}, {"ULP1", "UP3"}, {"ULP2", "UP3"}, {"LAIN", ""}} {
 		data := map[string]any{"code": s.id}
 		if s.parent != "" {
@@ -62,7 +62,7 @@ func TestActorForExpandsSiteHierarchyAndProfile(t *testing.T) {
 	}
 	none, _ := e.entries.ActorFor(e.ctx, "baru", "Baru", false)
 	if len(none.Sites) != 0 {
-		t.Errorf("tanpa profil: %+v", none.Sites)
+		t.Errorf("without profile: %+v", none.Sites)
 	}
 }
 
@@ -78,15 +78,15 @@ func TestPatternCodeOnSave(t *testing.T) {
 	}
 	a, err := e.entries.Create(e.ctx, "vehicle", map[string]any{"plate": "L 1", "location": loc.ID}, u1)
 	if err != nil || a.Data["code"] != "GDG-001" {
-		t.Fatalf("pertama: %+v %v", a, err)
+		t.Fatalf("first: %+v %v", a, err)
 	}
 	b, _ := e.entries.Create(e.ctx, "vehicle", map[string]any{"plate": "L 2", "location": loc.ID, "code": "GDG-001"}, u1)
 	if b.Data["code"] != "GDG-002" {
-		t.Errorf("kedua: %v", b.Data["code"])
+		t.Errorf("second: %v", b.Data["code"])
 	}
 	a, err = e.entries.Update(e.ctx, "vehicle", a.ID, map[string]any{"plate": "L 1b", "location": loc.ID}, u2)
 	if err != nil || a.Data["code"] != "GDG-001" {
-		t.Errorf("update tidak mengubah kode: %+v %v", a, err)
+		t.Errorf("update does not change the code: %+v %v", a, err)
 	}
 }
 
@@ -101,29 +101,29 @@ func TestPreviewAutoFill(t *testing.T) {
 	if _, err := e.schemas.UpdateContentType(e.ctx, "vehicle", ct); err != nil {
 		t.Fatal(err)
 	}
-	for range 2 { // preview tidak memakai nomor urut
+	for range 2 { // preview does not consume the sequence number
 		got, err := e.entries.Preview(e.ctx, "vehicle", "", map[string]any{"location": loc.ID}, u1)
 		if err != nil || got["locName"] != "GDG" || got["code"] != "GDG-001" {
 			t.Fatalf("preview: %v %v", got, err)
 		}
 		if _, ok := got["plate"]; ok {
-			t.Error("preview hanya field otomatis")
+			t.Error("preview must return only auto fields")
 		}
 	}
 	v, _ := e.entries.Create(e.ctx, "vehicle", map[string]any{"plate": "L 1", "location": loc.ID}, u1)
 	if v.Data["code"] != "GDG-001" {
-		t.Errorf("create setelah preview: %v", v.Data["code"])
+		t.Errorf("create after preview: %v", v.Data["code"])
 	}
 	got, _ := e.entries.Preview(e.ctx, "vehicle", v.ID, map[string]any{"location": loc.ID}, u1)
 	if got["code"] != "GDG-001" {
-		t.Errorf("preview entri lama: kode tetap: %v", got["code"])
+		t.Errorf("preview of an existing entry: code unchanged: %v", got["code"])
 	}
 	if got, _ := e.entries.Preview(e.ctx, "vehicle", "", map[string]any{}, u1); got["code"] != "-001" || got["locName"] != nil {
-		t.Errorf("tanpa lokasi: %v", got)
+		t.Errorf("without location: %v", got)
 	}
 }
 
-// Pemilik = user login: profil dibuat otomatis (dengan nama) supaya relasi valid & labelnya nama user.
+// Owner = logged-in user: the profile is created automatically (with the name) so the relation is valid & labeled with the user name.
 func TestAutoUserOwnerEnsuresProfile(t *testing.T) {
 	e := newEnv()
 	e.seed()
@@ -144,9 +144,9 @@ func TestAutoUserOwnerEnsuresProfile(t *testing.T) {
 	}
 	p, err := e.entries.Get(e.ctx, content.ProfileUID, "u1", super)
 	if err != nil || p.Data["name"] != "Budi" {
-		t.Fatalf("profil otomatis: %+v %v", p, err)
+		t.Fatalf("auto profile: %+v %v", p, err)
 	}
-	// profil yang sudah ada tidak ditimpa, hanya namanya disamakan
+	// an existing profile is not overwritten, only its name is synced
 	if _, err := e.entries.Upsert(e.ctx, content.ProfileUID, "u2", map[string]any{"jobTitle": "Teknisi"}, super); err != nil {
 		t.Fatal(err)
 	}
@@ -154,6 +154,6 @@ func TestAutoUserOwnerEnsuresProfile(t *testing.T) {
 		t.Fatal(err)
 	}
 	if p, _ := e.entries.Get(e.ctx, content.ProfileUID, "u2", super); p.Data["name"] != "Ani" || p.Data["jobTitle"] != "Teknisi" {
-		t.Errorf("profil lama: %+v", p.Data)
+		t.Errorf("existing profile: %+v", p.Data)
 	}
 }

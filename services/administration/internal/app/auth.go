@@ -13,12 +13,12 @@ func NewAuth(d Deps) *Auth { return &Auth{d} }
 
 type LoginResult struct {
 	Token             string
-	ExpiresIn         int // detik
+	ExpiresIn         int // seconds
 	User              *user.User
-	AttemptsRemaining int // diisi saat password salah
+	AttemptsRemaining int // set when the password is wrong
 }
 
-// Hash dummy supaya waktu respon sama saat username tidak ada (cegah enumerasi user).
+// Dummy hash so response time is the same when the username doesn't exist (prevents user enumeration).
 const dummyHash = "$2a$10$7EqJtq98hPqEX7fNZaFWoOhi5BWX4Z3Z8bQxQyZ3cZ6aZbYzL2J3W"
 
 func (a *Auth) Login(ctx context.Context, login, password string) (LoginResult, error) {
@@ -39,7 +39,7 @@ func (a *Auth) Login(ctx context.Context, login, password string) (LoginResult, 
 			return LoginResult{}, rerr
 		}
 		if locked {
-			return LoginResult{}, errs.Unauthorized("akun terkunci karena terlalu banyak percobaan gagal")
+			return LoginResult{}, errs.Unauthorized("account locked due to too many failed attempts")
 		}
 		return LoginResult{AttemptsRemaining: user.MaxFailedLogins - attempts}, err
 	}

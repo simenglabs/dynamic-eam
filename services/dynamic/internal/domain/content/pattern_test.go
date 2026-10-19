@@ -9,7 +9,7 @@ import (
 
 func withCode(pattern string, lock bool) ContentType {
 	ct := vehicle()
-	ct.Fields = append(ct.Fields, Field{Name: "code", Label: "Kode", Type: TText, AutoFill: &AutoFill{Source: AutoPattern, Pattern: pattern, Lock: lock}})
+	ct.Fields = append(ct.Fields, Field{Name: "code", Label: "Code", Type: TText, AutoFill: &AutoFill{Source: AutoPattern, Pattern: pattern, Lock: lock}})
 	return ct
 }
 
@@ -23,13 +23,13 @@ func TestPatternValidation(t *testing.T) {
 	for _, p := range []string{"", "{seq}-{seq}", "{nope}", "{plate.x}", "{photos.x}", "{seq:0}", "{seq:abc}", "{YYYYY}"} {
 		ct := withCode(p, true)
 		if errs.KindOf(ct.Validate(catalog())) != errs.KindInvalid {
-			t.Errorf("%q harus ditolak", p)
+			t.Errorf("%q must be rejected", p)
 		}
 	}
 	ct := vehicle()
 	ct.Fields[2].AutoFill = &AutoFill{Source: AutoPattern, Pattern: "X{seq}"} // boolean
 	if errs.KindOf(ct.Validate(catalog())) != errs.KindInvalid {
-		t.Error("pola hanya untuk field teks")
+		t.Error("code pattern is only for text fields")
 	}
 }
 
@@ -52,31 +52,31 @@ func TestApplyPatterns(t *testing.T) {
 		}
 		return out["code"]
 	}
-	if v := gen(map[string]any{"location": "L1", "code": "ketik"}, nil); v != "TGD-2610-0001" {
-		t.Errorf("pertama = %v", v)
+	if v := gen(map[string]any{"location": "L1", "code": "typed"}, nil); v != "TGD-2610-0001" {
+		t.Errorf("first = %v", v)
 	}
 	if v := gen(map[string]any{"location": "L1"}, nil); v != "TGD-2610-0002" {
-		t.Errorf("kedua = %v", v)
+		t.Errorf("second = %v", v)
 	}
 	if v := gen(map[string]any{"location": "L2"}, nil); v != "TRF-2610-0001" {
-		t.Errorf("prefix lain mulai dari 1 = %v", v)
+		t.Errorf("another prefix starts at 1 = %v", v)
 	}
-	// update: kode terkunci tidak berubah walau relasi berganti / user mengirim nilai lain
+	// update: a locked code does not change even if the relation changes / the user sends another value
 	if v := gen(map[string]any{"location": "L2", "code": "X"}, map[string]any{"code": "TGD-2610-0001"}); v != "TGD-2610-0001" {
-		t.Errorf("update terkunci = %v", v)
+		t.Errorf("locked update = %v", v)
 	}
-	// tidak terkunci: nilai user dipakai, kosong = dibuatkan
+	// not locked: the user value is used, empty = generated
 	ct = withCode("WO-{seq}", false)
 	if v := gen(map[string]any{"code": "MANUAL"}, nil); v != "MANUAL" {
 		t.Errorf("manual = %v", v)
 	}
 	if v := gen(map[string]any{}, nil); v != "WO-1" {
-		t.Errorf("tanpa padding = %v", v)
+		t.Errorf("no padding = %v", v)
 	}
-	// tanpa {seq}: tidak memakai counter
+	// without {seq}: no counter is used
 	ct = withCode("{plate}/{YYYY}", true)
 	n := len(c)
 	if v := gen(map[string]any{"plate": "B1"}, nil); v != "B1/2026" || len(c) != n {
-		t.Errorf("tanpa seq = %v", v)
+		t.Errorf("no seq = %v", v)
 	}
 }

@@ -1,7 +1,7 @@
 import NextLink from "next/link";
 import type { ComponentProps, ReactNode } from "react";
 
-// ponytail: varian ditulis tangan, tanpa cva/shadcn CLI. Tambah shadcn kalau butuh komponen interaktif kompleks.
+// ponytail: hand-written variants, no cva/shadcn CLI. Add shadcn if complex interactive components are needed.
 const cx = (...c: (string | false | undefined)[]) => c.filter(Boolean).join(" ");
 
 const BUTTON = {
@@ -24,7 +24,7 @@ export function Button({ variant = "primary", className, ...p }: ComponentProps<
   );
 }
 
-// Badge pill dengan titik: warna + teks (status tidak pernah warna saja).
+// Pill badge with a dot: color + text (status is never color alone).
 const BADGE = {
   green: "bg-green-50 text-green-700 [--dot:var(--green)]",
   red: "bg-red-50 text-red-700 [--dot:var(--red)]",
@@ -74,7 +74,7 @@ export const Td = ({ className, ...p }: ComponentProps<"td">) => (
   <td className={cx("max-w-64 truncate px-4 py-3.5 whitespace-nowrap first:pl-6 last:pr-6", className)} {...p} />
 );
 
-// Judul halaman: crumbs kecil di atas, judul besar, subtitle opsional, aksi di kanan.
+// Page header: small crumbs on top, large title, optional subtitle, actions on the right.
 export function PageHeader({ crumbs, title, subtitle, actions }: { crumbs: string[]; title: string; subtitle?: string; actions?: ReactNode }) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-4 px-8 pt-6 pb-2">
@@ -94,7 +94,7 @@ export function Field({ label, required, optional, children }: { label: string; 
       <span className="text-sm font-medium text-slate-700">
         {label}
         {required && <span className="text-destructive ml-0.5">*</span>}
-        {optional && <span className="ml-1 font-normal text-slate-400">(opsional)</span>}
+        {optional && <span className="ml-1 font-normal text-slate-400">(optional)</span>}
       </span>
       {children}
     </label>
@@ -111,7 +111,7 @@ export function Pagination({ page, size, total, href }: { page: number; size: nu
   const btn = "inline-flex h-9 min-w-9 items-center justify-center rounded-lg border px-3 text-sm font-medium";
   return (
     <div className="flex items-center justify-between text-sm text-slate-500">
-      <span>Menampilkan {from}–{Math.min(page * size, total)} dari {total}</span>
+      <span>Showing {from}–{Math.min(page * size, total)} of {total}</span>
       <nav aria-label="Pagination" className="flex gap-1.5">
         {page > 1 ? <NextLink href={href(page - 1)} className={cx(btn, "border-slate-200 bg-white text-slate-700 hover:bg-slate-50")}>Prev</NextLink> : <span className={cx(btn, "border-slate-100 text-slate-300")}>Prev</span>}
         <span className={cx(btn, "bg-primary border-primary text-white")}>{page}</span>
@@ -121,7 +121,7 @@ export function Pagination({ page, size, total, href }: { page: number; size: nu
   );
 }
 
-// Bar aksi atas form (Back + tombol): menempel di atas saat scroll.
+// Form action bar (Back + buttons): sticks to the top on scroll.
 export function ActionBar({ children }: { children: ReactNode }) {
   return <div className="sticky top-16 z-10 mx-8 mt-4 flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/90 px-5 py-3 backdrop-blur">{children}</div>;
 }

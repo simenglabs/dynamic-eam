@@ -13,7 +13,7 @@ type Media struct{ d Deps }
 
 func NewMedia(d Deps) *Media { return &Media{d} }
 
-// Upload: tipe file dideteksi dari 512 byte pertama isi file, bukan dari header client.
+// Upload: the file type is detected from the first 512 bytes of the file content, not from the client header.
 func (s *Media) Upload(ctx context.Context, name string, size int64, r io.Reader, by string) (*media.Media, error) {
 	head := make([]byte, 512)
 	n, err := io.ReadFull(r, head)

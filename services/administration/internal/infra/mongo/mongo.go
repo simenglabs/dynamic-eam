@@ -1,5 +1,5 @@
-// Package mongo: adapter Mongo untuk user.Repository & role.Repository.
-// Dokumen disimpan dalam bentuk lama (kompatibel data yang sudah ada).
+// Package mongo: Mongo adapter for user.Repository & role.Repository.
+// Documents keep the legacy shape (compatible with existing data).
 package mongo
 
 import (
@@ -16,7 +16,7 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-// New menyiapkan index + migrasi skema, lalu mengembalikan kedua repository.
+// New sets up indexes + schema migration, then returns both repositories.
 func New(ctx context.Context, db *mongo.Database) (*Users, *Roles, error) {
 	users, roles := db.Collection("users"), db.Collection("roles")
 	_, err := users.Indexes().CreateMany(ctx, []mongo.IndexModel{
@@ -27,7 +27,7 @@ func New(ctx context.Context, db *mongo.Database) (*Users, *Roles, error) {
 		_, err = roles.Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "name", Value: 1}}, Options: options.Index().SetUnique(true)})
 	}
 	if err == nil {
-		// Migrasi: field lama "role" (string) -> "roles" (array).
+		// Migration: legacy field "role" (string) -> "roles" (array).
 		_, err = users.UpdateMany(ctx, bson.M{"role": bson.M{"$exists": true}, "roles": bson.M{"$exists": false}},
 			mongo.Pipeline{{{Key: "$set", Value: bson.M{"roles": bson.A{"$role"}}}}, {{Key: "$unset", Value: "role"}}})
 	}
@@ -114,7 +114,7 @@ func dupErr(err error, msg string) error {
 
 func (r *Users) Insert(ctx context.Context, u *user.User) error {
 	_, err := r.c.InsertOne(ctx, toUserDoc(u))
-	return dupErr(err, "username atau email sudah dipakai")
+	return dupErr(err, "username or email is already taken")
 }
 
 func (r *Users) Update(ctx context.Context, u *user.User) error {
@@ -122,7 +122,7 @@ func (r *Users) Update(ctx context.Context, u *user.User) error {
 	if err == nil && res.MatchedCount == 0 {
 		return errs.NotFound("user")
 	}
-	return dupErr(err, "email sudah dipakai")
+	return dupErr(err, "email is already taken")
 }
 
 func (r *Users) Delete(ctx context.Context, id string) error {
@@ -134,7 +134,7 @@ func (r *Users) Delete(ctx context.Context, id string) error {
 }
 
 func (r *Users) RecordFailedLogin(ctx context.Context, id string) (int, bool, error) {
-	// Satu update pipeline: increment + kunci bila mencapai batas (atomik terhadap login paralel).
+	// Single update pipeline: increment + lock when the limit is reached (atomic against parallel logins).
 	next := bson.M{"$add": bson.A{"$failedAttempts", 1}}
 	var d userDoc
 	err := r.c.FindOneAndUpdate(ctx, bson.M{"_id": id},
@@ -208,12 +208,12 @@ func (r *Roles) Get(ctx context.Context, id string) (*role.Role, error) {
 
 func (r *Roles) Insert(ctx context.Context, x *role.Role) error {
 	_, err := r.c.InsertOne(ctx, toRoleDoc(x))
-	return dupErr(err, "ID atau nama role sudah dipakai")
+	return dupErr(err, "role ID or name is already taken")
 }
 
 func (r *Roles) Update(ctx context.Context, x *role.Role) error {
 	_, err := r.c.ReplaceOne(ctx, bson.M{"_id": x.ID}, toRoleDoc(x))
-	return dupErr(err, "nama role sudah dipakai")
+	return dupErr(err, "role name is already taken")
 }
 
 func (r *Roles) Delete(ctx context.Context, id string) error {

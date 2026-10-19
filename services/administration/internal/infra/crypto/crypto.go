@@ -1,4 +1,4 @@
-// Package crypto: adapter bcrypt (user.Hasher) dan JWT (app.TokenIssuer).
+// Package crypto: bcrypt (user.Hasher) and JWT (app.TokenIssuer) adapters.
 package crypto
 
 import (
@@ -19,7 +19,7 @@ func (Bcrypt) Compare(hash []byte, pw string) bool {
 	return bcrypt.CompareHashAndPassword(hash, []byte(pw)) == nil
 }
 
-// JWT menerbitkan token sesi yang diverifikasi semua service lewat common.Auth.
+// JWT issues session tokens verified by all services via common.Auth.
 type JWT struct{ TTL time.Duration }
 
 func (j JWT) Issue(u *user.User) (string, time.Duration, error) {

@@ -8,18 +8,18 @@ import (
 	"eam/services/common/errs"
 )
 
-// Refs: id relation & media yang dirujuk entri; keberadaannya dicek app layer ke repository.
+// Refs: relation & media ids referenced by an entry; the app layer checks they exist in the repository.
 type Refs struct {
 	Relations map[string][]string // target uid -> ids
 	Media     []string
-	Domains   map[string][]string // kode domain -> valueId
+	Domains   map[string][]string // domain code -> valueId
 }
 
-// MetaFields: metadata entri yang dikelola sistem (bukan input user).
+// MetaFields: system-managed entry metadata (not user input).
 var MetaFields = reservedFields
 
-// ValidateEntry memvalidasi & menormalkan data sesuai fields. Key asing ditolak.
-// creating = isi default untuk field yang tidak dikirim.
+// ValidateEntry validates & normalizes data against fields. Unknown keys are rejected.
+// creating = fill defaults for fields that were not sent.
 func ValidateEntry(fields []Field, data map[string]any, comps map[string]Component, creating bool) (map[string]any, Refs, error) {
 	r := &refsCollector{comps: comps, refs: Refs{Relations: map[string][]string{}, Domains: map[string][]string{}}}
 	out, err := r.validate(fields, data, creating)
@@ -34,7 +34,7 @@ type refsCollector struct {
 func (r *refsCollector) validate(fields []Field, data map[string]any, creating bool) (map[string]any, error) {
 	for k := range data {
 		if !slices.ContainsFunc(fields, func(f Field) bool { return f.Name == k }) {
-			return nil, errs.Invalid("field %q tidak dikenal", k)
+			return nil, errs.Invalid("unknown field %q", k)
 		}
 	}
 	out := map[string]any{}
@@ -45,7 +45,7 @@ func (r *refsCollector) validate(fields []Field, data map[string]any, creating b
 		}
 		if isEmpty(v) {
 			if f.Required {
-				return nil, errs.Invalid("%s wajib diisi", f.Label)
+				return nil, errs.Invalid("%s is required", f.Label)
 			}
 			continue
 		}
@@ -74,16 +74,16 @@ func isEmpty(v any) bool {
 
 var textMax = map[string]int{TText: 255, TLongText: 100_000}
 
-// coerce mengecek tipe satu nilai. r == nil = validasi nilai default (relation/media/component tidak didukung).
+// coerce checks the type of one value. r == nil = validating a default value (relation/media/component not supported).
 func coerce(f Field, v any, r *refsCollector) (any, error) {
 	switch f.Type {
 	case TText, TLongText:
 		s, ok := v.(string)
 		if !ok {
-			return nil, errs.Invalid("harus teks")
+			return nil, errs.Invalid("must be text")
 		}
 		if utf8.RuneCountInString(s) > textMax[f.Type] {
-			return nil, errs.Invalid("maksimal %d karakter", textMax[f.Type])
+			return nil, errs.Invalid("maximum %d characters", textMax[f.Type])
 		}
 		return s, nil
 	case TNumber:
@@ -97,39 +97,39 @@ func coerce(f Field, v any, r *refsCollector) (any, error) {
 		case int64:
 			return float64(n), nil
 		}
-		return nil, errs.Invalid("harus angka")
+		return nil, errs.Invalid("must be a number")
 	case TBoolean:
 		if b, ok := v.(bool); ok {
 			return b, nil
 		}
-		return nil, errs.Invalid("harus true/false")
+		return nil, errs.Invalid("must be true/false")
 	case TDate:
 		s, ok := v.(string)
 		if _, err := time.Parse(time.DateOnly, s); !ok || err != nil {
-			return nil, errs.Invalid("format tanggal harus YYYY-MM-DD")
+			return nil, errs.Invalid("date format must be YYYY-MM-DD")
 		}
 		return s, nil
 	case TSelect:
 		if s, ok := v.(string); ok && slices.Contains(f.Options, s) {
 			return s, nil
 		}
-		return nil, errs.Invalid("harus salah satu dari %v", f.Options)
+		return nil, errs.Invalid("must be one of %v", f.Options)
 	}
 
 	if r == nil {
-		return nil, errs.Invalid("default tidak didukung untuk tipe %s", f.Type)
+		return nil, errs.Invalid("default is not supported for type %s", f.Type)
 	}
 	switch f.Type {
-	case TAttributes: // isi dicek app layer terhadap atribut classification (ValidateAttributes)
+	case TAttributes: // content checked by the app layer against classification attributes (ValidateAttributes)
 		m, ok := v.(map[string]any)
 		if !ok {
-			return nil, errs.Invalid("harus objek atribut")
+			return nil, errs.Invalid("must be an attribute object")
 		}
 		return m, nil
 	case TDomain:
 		s, ok := v.(string)
 		if !ok {
-			return nil, errs.Invalid("harus kode nilai domain")
+			return nil, errs.Invalid("must be a domain value code")
 		}
 		r.refs.Domains[f.Domain] = append(r.refs.Domains[f.Domain], s)
 		return s, nil
@@ -152,7 +152,7 @@ func coerce(f Field, v any, r *refsCollector) (any, error) {
 		one := func(x any) (map[string]any, error) {
 			m, ok := x.(map[string]any)
 			if !ok {
-				return nil, errs.Invalid("harus objek")
+				return nil, errs.Invalid("must be an object")
 			}
 			return r.validate(comp.Fields, m, true)
 		}
@@ -161,7 +161,7 @@ func coerce(f Field, v any, r *refsCollector) (any, error) {
 		}
 		list, ok := v.([]any)
 		if !ok {
-			return nil, errs.Invalid("harus list")
+			return nil, errs.Invalid("must be a list")
 		}
 		out := make([]any, 0, len(list))
 		seen := map[any]int{}
@@ -172,7 +172,7 @@ func coerce(f Field, v any, r *refsCollector) (any, error) {
 			}
 			if k := m[f.UniqueBy]; f.UniqueBy != "" && k != nil {
 				if j, dup := seen[k]; dup {
-					return nil, errs.Invalid("item %d dan %d: %s %v duplikat", j+1, i+1, f.UniqueBy, k)
+					return nil, errs.Invalid("items %d and %d: duplicate %s %v", j+1, i+1, f.UniqueBy, k)
 				}
 				seen[k] = i
 			}
@@ -180,7 +180,7 @@ func coerce(f Field, v any, r *refsCollector) (any, error) {
 		}
 		return out, nil
 	}
-	return nil, errs.Invalid("tipe %q tidak dikenal", f.Type)
+	return nil, errs.Invalid("unknown type %q", f.Type)
 }
 
 func idList(v any, multiple bool) ([]string, error) {
@@ -189,13 +189,13 @@ func idList(v any, multiple bool) ([]string, error) {
 	}
 	list, ok := v.([]any)
 	if !ok || !multiple {
-		return nil, errs.Invalid("format id tidak valid")
+		return nil, errs.Invalid("id format is invalid")
 	}
 	ids := make([]string, 0, len(list))
 	for _, x := range list {
 		s, ok := x.(string)
 		if !ok || s == "" {
-			return nil, errs.Invalid("format id tidak valid")
+			return nil, errs.Invalid("id format is invalid")
 		}
 		if !slices.Contains(ids, s) {
 			ids = append(ids, s)

@@ -9,7 +9,7 @@ import (
 	"eam/services/common/errs"
 )
 
-// fakeHasher: hash = "h:" + password. Cepat & deterministik untuk test domain.
+// fakeHasher: hash = "h:" + password. Fast & deterministic for domain tests.
 type fakeHasher struct{}
 
 func (fakeHasher) Hash(pw string) ([]byte, error)   { return []byte("h:" + pw), nil }
@@ -27,21 +27,21 @@ func TestNewNormalizesAndHashes(t *testing.T) {
 		t.Fatal(err)
 	}
 	if u.Username != "Budi" || u.UsernameKey() != "budi" || u.EmailKey() != "budi@x.id" {
-		t.Errorf("normalisasi salah: %+v", u)
+		t.Errorf("wrong normalization: %+v", u)
 	}
 	if !u.Active || u.Locked || string(u.PasswordHash) != "h:password1" || !u.CreatedAt.Equal(now) {
-		t.Errorf("state awal salah: %+v", u)
+		t.Errorf("wrong initial state: %+v", u)
 	}
 }
 
 func TestNewRejectsInvalidInput(t *testing.T) {
 	cases := map[string]func(*NewParams){
-		"username kosong":      func(p *NewParams) { p.Username = "  " },
-		"nama kosong":          func(p *NewParams) { p.DisplayName = "" },
-		"email salah":          func(p *NewParams) { p.Email = "bukan-email" },
-		"tanpa role":           func(p *NewParams) { p.Roles = nil },
-		"password pendek":      func(p *NewParams) { p.Password = "short" },
-		"password kepanjangan": func(p *NewParams) { p.Password = strings.Repeat("x", 73) },
+		"empty username":     func(p *NewParams) { p.Username = "  " },
+		"empty name":         func(p *NewParams) { p.DisplayName = "" },
+		"bad email":          func(p *NewParams) { p.Email = "not-an-email" },
+		"no role":            func(p *NewParams) { p.Roles = nil },
+		"password too short": func(p *NewParams) { p.Password = "short" },
+		"password too long":  func(p *NewParams) { p.Password = strings.Repeat("x", 73) },
 	}
 	for name, mutate := range cases {
 		p := valid()
@@ -57,31 +57,31 @@ func TestInactiveFlagRespected(t *testing.T) {
 	p.Inactive = true
 	u, _ := New("id", p, fakeHasher{}, now)
 	if u.Active {
-		t.Error("Inactive=true harus membuat user tidak aktif")
+		t.Error("Inactive=true must make the user inactive")
 	}
 }
 
 func TestCheckLogin(t *testing.T) {
 	u, _ := New("id", valid(), fakeHasher{}, now)
 	if err := u.CheckLogin(fakeHasher{}, "password1"); err != nil {
-		t.Fatal("password benar harus lolos:", err)
+		t.Fatal("correct password must pass:", err)
 	}
-	if err := u.CheckLogin(fakeHasher{}, "salah"); !errors.Is(err, ErrBadCredentials) {
-		t.Errorf("password salah: %v", err)
+	if err := u.CheckLogin(fakeHasher{}, "wrong"); !errors.Is(err, ErrBadCredentials) {
+		t.Errorf("wrong password: %v", err)
 	}
 	u.Locked = true
 	if err := u.CheckLogin(fakeHasher{}, "password1"); !errors.Is(err, ErrLocked) {
-		t.Errorf("terkunci: %v", err)
+		t.Errorf("locked: %v", err)
 	}
 	u.Locked, u.Active = false, false
 	if err := u.CheckLogin(fakeHasher{}, "password1"); !errors.Is(err, ErrInactive) {
-		t.Errorf("nonaktif: %v", err)
+		t.Errorf("inactive: %v", err)
 	}
 }
 
 func TestShouldLock(t *testing.T) {
 	if ShouldLock(MaxFailedLogins-1) || !ShouldLock(MaxFailedLogins) {
-		t.Errorf("batas kunci harus tepat di %d", MaxFailedLogins)
+		t.Errorf("lock threshold must be exactly %d", MaxFailedLogins)
 	}
 }
 
@@ -89,24 +89,24 @@ func TestEdit(t *testing.T) {
 	u, _ := New("id", valid(), fakeHasher{}, now)
 	u.Locked, u.FailedAttempts = true, 5
 	later := now.Add(time.Hour)
-	err := u.Edit(EditParams{DisplayName: "Budi Baru", Email: "baru@x.id", Roles: []string{"admin"}, Locked: new(false), Password: "newpassword"}, fakeHasher{}, later)
+	err := u.Edit(EditParams{DisplayName: "Budi New", Email: "new@x.id", Roles: []string{"admin"}, Locked: new(false), Password: "newpassword"}, fakeHasher{}, later)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if u.DisplayName != "Budi Baru" || u.EmailKey() != "baru@x.id" || u.Roles[0] != "admin" || !u.UpdatedAt.Equal(later) {
-		t.Errorf("edit tidak diterapkan: %+v", u)
+	if u.DisplayName != "Budi New" || u.EmailKey() != "new@x.id" || u.Roles[0] != "admin" || !u.UpdatedAt.Equal(later) {
+		t.Errorf("edit not applied: %+v", u)
 	}
 	if u.Locked || u.FailedAttempts != 0 {
-		t.Error("unlock harus mereset failed attempts")
+		t.Error("unlock must reset failed attempts")
 	}
 	if string(u.PasswordHash) != "h:newpassword" {
-		t.Error("password baru harus di-hash")
+		t.Error("new password must be hashed")
 	}
 	if err := u.Edit(EditParams{DisplayName: "x", Email: "x@x.id", Roles: []string{"admin"}}, fakeHasher{}, later); err != nil || string(u.PasswordHash) != "h:newpassword" {
-		t.Error("password kosong saat edit = tidak diubah")
+		t.Error("empty password on edit = unchanged")
 	}
 	if err := u.Edit(EditParams{DisplayName: "", Email: "x@x.id", Roles: []string{"a"}}, fakeHasher{}, later); errs.KindOf(err) != errs.KindInvalid {
-		t.Error("edit tetap divalidasi")
+		t.Error("edit is still validated")
 	}
 }
 
@@ -115,6 +115,6 @@ func TestIsSuperAdmin(t *testing.T) {
 	p.Roles = []string{"user", SuperAdminRole}
 	u, _ := New("id", p, fakeHasher{}, now)
 	if !u.IsSuperAdmin() {
-		t.Error("harus superadmin")
+		t.Error("must be superadmin")
 	}
 }

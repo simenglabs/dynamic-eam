@@ -1,4 +1,4 @@
-// Package elastic: content.SearchIndex via REST Elasticsearch (tanpa SDK). Satu index per content type.
+// Package elastic: content.SearchIndex via the Elasticsearch REST API (no SDK). One index per content type.
 package elastic
 
 import (
@@ -18,7 +18,7 @@ import (
 type Index struct {
 	base, apiKey string
 	hc           *http.Client
-	// Replicas: jumlah replica per index. Server single-node harus 0 (replica tidak bisa di node yang sama = status yellow).
+	// Replicas: number of replicas per index. A single-node server must use 0 (a replica cannot live on the same node = yellow status).
 	Replicas int
 }
 
@@ -28,7 +28,7 @@ func New(base, apiKey string) *Index {
 
 func name(uid string) string { return "eam-ct-" + uid }
 
-// Field metadata di dokumen index (selain field schema).
+// Metadata fields in the index document (besides schema fields).
 const (
 	fCreatedAt = "createdAt"
 	fUpdatedAt = "updatedAt"
@@ -94,7 +94,7 @@ func mapping(ct *content.ContentType, replicas int) map[string]any {
 			props[f.Name] = map[string]any{"type": "object", "enabled": false}
 		}
 	}
-	// dynamic=false: field di luar schema tetap di _source tapi tidak di-index (cegah konflik mapping).
+	// dynamic=false: fields outside the schema stay in _source but are not indexed (prevents mapping conflicts).
 	return map[string]any{
 		"settings": map[string]any{"number_of_replicas": replicas},
 		"mappings": map[string]any{"dynamic": false, "properties": props},
@@ -113,7 +113,7 @@ func source(e *content.Entry) map[string]any {
 	return doc
 }
 
-// Rebuild: hapus index, buat ulang dengan mapping terbaru, isi ulang semua entri.
+// Rebuild: delete the index, recreate it with the latest mapping, and refill all entries.
 func (x *Index) Rebuild(ctx context.Context, ct *content.ContentType, entries []*content.Entry) error {
 	idx := name(ct.UID)
 	if _, err := x.do(ctx, http.MethodDelete, "/"+idx, nil, nil); err != nil {
@@ -138,7 +138,7 @@ func (x *Index) Rebuild(ctx context.Context, ct *content.ContentType, entries []
 		return err
 	}
 	if res.Errors {
-		return fmt.Errorf("elasticsearch bulk: sebagian dokumen gagal di-index")
+		return fmt.Errorf("elasticsearch bulk: some documents failed to index")
 	}
 	return nil
 }
@@ -182,10 +182,10 @@ func (x *Index) Search(ctx context.Context, ct *content.ContentType, q content.Q
 	if len(q.States) > 0 {
 		filters = append(filters, map[string]any{"terms": map[string]any{fStatus: q.States}})
 	}
-	if q.Scope != nil { // pembatasan per site (field relasi = keyword)
+	if q.Scope != nil { // per-site restriction (relation field = keyword)
 		filters = append(filters, map[string]any{"terms": map[string]any{q.Scope.Field: q.Scope.Values}})
 	}
-	for _, f := range q.Filters { // filter relasi: field teks dicocokkan via subfield keyword
+	for _, f := range q.Filters { // relation filter: text fields are matched via the keyword subfield
 		field := f.Field
 		if i := slices.IndexFunc(ct.Fields, func(x content.Field) bool { return x.Name == f.Field }); i >= 0 && ct.Fields[i].Type == content.TText {
 			field += ".keyword"

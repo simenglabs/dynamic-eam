@@ -7,7 +7,7 @@ import (
 	"eam/services/dynamic/internal/domain/content"
 )
 
-// Relasi dengan filter: lokasi dipilih sesuai site di form (dropdown bertingkat), dicek juga saat Save.
+// Relation with filter: location is chosen by the site in the form (cascading dropdown), also checked on Save.
 func TestRelationWhere(t *testing.T) {
 	e := newEnv()
 	loc := &content.ContentType{UID: "location", Label: "Lokasi", Parent: "master", DisplayField: "name", Fields: []content.Field{
@@ -25,19 +25,19 @@ func TestRelationWhere(t *testing.T) {
 	}
 	opts, err := e.entries.Options(e.ctx, "location", "", map[string]string{"site": "S1", "kind": "GARDU"}, u1)
 	if err != nil || len(opts) != 1 || opts[0].ID != ids["G1"] {
-		t.Fatalf("options terfilter: %+v %v", opts, err)
+		t.Fatalf("filtered options: %+v %v", opts, err)
 	}
 	if _, err := e.entries.Create(e.ctx, "pole", map[string]any{"code": "P1", "site": "S1", "location": ids["G1"]}, u1); err != nil {
-		t.Errorf("sesuai filter: %v", err)
+		t.Errorf("matches filter: %v", err)
 	}
 	for _, bad := range []string{"G2", "K1"} {
 		if _, err := e.entries.Create(e.ctx, "pole", map[string]any{"code": "P2", "site": "S1", "location": ids[bad]}, u1); errs.KindOf(err) != errs.KindInvalid {
-			t.Errorf("%s di luar filter harus ditolak: %v", bad, err)
+			t.Errorf("%s outside the filter must be rejected: %v", bad, err)
 		}
 	}
 }
 
-// Atribut classification: field yang muncul sesuai classification (termasuk warisan induk), divalidasi saat Save.
+// Classification attributes: fields shown per classification (including inherited ones), validated on Save.
 func TestClassificationAttributes(t *testing.T) {
 	e := newEnv()
 	attr := &content.ContentType{UID: content.AttributeUID, Label: "Attributes", Parent: "master", DisplayField: "attributeId", Fields: []content.Field{
@@ -74,21 +74,21 @@ func TestClassificationAttributes(t *testing.T) {
 
 	defs, err := e.entries.AttributesOf(e.ctx, trafo)
 	if err != nil || len(defs) != 2 || defs[0].Code != "TEGANGAN" || !defs[0].Mandatory || defs[0].Unit != "kV" || defs[1].Code != "MERK" || defs[1].Length != 5 {
-		t.Fatalf("atribut trafo (+ induk): %+v %v", defs, err)
+		t.Fatalf("transformer attributes (+ parent): %+v %v", defs, err)
 	}
 	if _, err := e.entries.Create(e.ctx, "asset", map[string]any{"code": "A1", "classification": trafo, "specs": map[string]any{merk: "ABB"}}, u1); errs.KindOf(err) != errs.KindInvalid {
-		t.Errorf("atribut wajib kosong harus ditolak: %v", err)
+		t.Errorf("empty required attribute must be rejected: %v", err)
 	}
 	a, err := e.entries.Create(e.ctx, "asset", map[string]any{"code": "A1", "classification": trafo, "specs": map[string]any{volt: 20.0, merk: "ABB"}}, u1)
 	if err != nil || a.Data["specs"].(map[string]any)[volt] != 20.0 {
 		t.Fatalf("create: %+v %v", a, err)
 	}
-	// classification diganti: atribut lama dibuang
+	// classification changed: old attributes are dropped
 	a, err = e.entries.Update(e.ctx, "asset", a.ID, map[string]any{"code": "A1", "classification": tiang, "specs": map[string]any{volt: 20.0, tinggi: 9.0}}, u1)
 	if err != nil || len(a.Data["specs"].(map[string]any)) != 1 {
-		t.Errorf("ganti classification: %+v %v", a, err)
+		t.Errorf("change classification: %+v %v", a, err)
 	}
 	if _, err := e.entries.AttributesOf(e.ctx, "nope"); errs.KindOf(err) != errs.KindNotFound {
-		t.Errorf("classification tidak ada: %v", err)
+		t.Errorf("missing classification: %v", err)
 	}
 }

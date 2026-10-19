@@ -18,28 +18,28 @@ export default async function Builder() {
           <div className="flex items-center justify-between border-b pb-4">
             <div>
               <h2 className="text-lg font-bold">Content Types</h2>
-              <p className="text-muted-foreground text-sm">Hak akses tiap menu diatur di Administration › Role.</p>
+              <p className="text-muted-foreground text-sm">Access rights for each menu are managed in Administration › Role.</p>
             </div>
             <Link href="/builder/new"><Button tabIndex={-1}><Plus /> New Content Type</Button></Link>
           </div>
           <Table>
             <thead>
-              <tr>{["Nama", "UID", "Menu", "Fields", ""].map((h) => <Th key={h}>{h}</Th>)}</tr>
+              <tr>{["Name", "UID", "Menu", "Fields", ""].map((h) => <Th key={h}>{h}</Th>)}</tr>
             </thead>
             <tbody>
               {cts.map((ct) => (
                 <Tr key={ct.uid}>
                   <Td>
                     <Link href={`/builder/${ct.uid}`} className="text-primary underline underline-offset-3">{ct.label}</Link>
-                    {ct.hidden && <Badge className="ml-2">tersembunyi</Badge>}
+                    {ct.hidden && <Badge className="ml-2">hidden</Badge>}
                   </Td>
                   <Td>{ct.uid}</Td>
                   <Td>{zoneLabel(ct.parent)}</Td>
                   <Td>{ct.fields.length}</Td>
-                  <Td><Link href={`/c/${ct.uid}`} className="text-primary">Lihat data →</Link></Td>
+                  <Td><Link href={`/c/${ct.uid}`} className="text-primary">View records →</Link></Td>
                 </Tr>
               ))}
-              {cts.length === 0 && <tr><td colSpan={5} className="text-muted-foreground p-6 text-center">Belum ada content type.</td></tr>}
+              {cts.length === 0 && <tr><td colSpan={5} className="text-muted-foreground p-6 text-center">No content types yet.</td></tr>}
             </tbody>
           </Table>
         </Card>

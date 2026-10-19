@@ -5,8 +5,8 @@ import { AlertTriangle, Info } from "lucide-react";
 import { createDialogStore, type DialogRequest } from "./dialogStore";
 import { Button, Input, Textarea } from "./ui";
 
-// Pengganti window.alert/confirm/prompt: modal <dialog> bawaan (fokus terkunci, Esc = batal).
-// Pasang <DialogHost/> sekali di root layout (RootHtml sudah memasangnya).
+// Replacement for window.alert/confirm/prompt: native modal <dialog> (focus trapped, Esc = cancel).
+// Mount <DialogHost/> once in the root layout (RootHtml already does).
 const store = createDialogStore();
 
 type Opts = Omit<DialogRequest, "kind">;
@@ -40,10 +40,10 @@ export function DialogHost() {
       ref={ref}
       aria-labelledby="eam-dialog-title"
       onCancel={(e) => {
-        e.preventDefault(); // Esc: tutup lewat store supaya Promise ter-resolve
+        e.preventDefault(); // Esc: close via the store so the Promise resolves
         cancel();
       }}
-      onClick={(e) => e.target === ref.current && cancel()} // klik backdrop
+      onClick={(e) => e.target === ref.current && cancel()} // backdrop click
       className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-xl border bg-white p-0 text-foreground shadow-xl backdrop:bg-black/50"
     >
       {req && (
@@ -72,10 +72,10 @@ export function DialogHost() {
             ))}
           <div className="flex justify-end gap-2">
             {req.kind !== "alert" && (
-              <Button type="button" variant="outline" onClick={cancel}>{req.cancelText ?? "Batal"}</Button>
+              <Button type="button" variant="outline" onClick={cancel}>{req.cancelText ?? "Cancel"}</Button>
             )}
             <Button autoFocus={req.kind !== "prompt"} variant={req.danger ? "danger" : "primary"}>
-              {req.confirmText ?? (req.kind === "alert" ? "OK" : "Lanjut")}
+              {req.confirmText ?? (req.kind === "alert" ? "OK" : "Continue")}
             </Button>
           </div>
         </form>

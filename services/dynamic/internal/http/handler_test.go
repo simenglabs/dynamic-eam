@@ -19,7 +19,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// fakeAuthz: izin per user diatur langsung di test.
+// fakeAuthz: per-user permissions are set directly in the test.
 type fakeAuthz struct{ perms map[string]*common.Access }
 
 func (f *fakeAuthz) access(c *gin.Context) *common.Access {
@@ -70,7 +70,7 @@ func newEnv(t *testing.T) *env {
 	return e
 }
 
-// grant: user dengan izin tertentu ("ct/vehicle" -> [read]).
+// grant: a user with specific permissions ("ct/vehicle" -> [read]).
 func (e *env) grant(user string, perms map[string][]string) {
 	e.authz.perms[user] = &common.Access{UserID: user, Permissions: perms}
 }
@@ -110,10 +110,10 @@ func TestBuilderIsSuperAdminOnly(t *testing.T) {
 	e := newEnv(t)
 	e.grant("admin", map[string][]string{"*": common.Actions})
 	if w := e.do("admin", "POST", "/content-types", vehicleSchema); w.Code != 403 {
-		t.Errorf("admin buat schema: %d", w.Code)
+		t.Errorf("admin creates schema: %d", w.Code)
 	}
 	if w := e.do("admin", "POST", "/components", `{}`); w.Code != 403 {
-		t.Errorf("admin buat component: %d", w.Code)
+		t.Errorf("admin creates component: %d", w.Code)
 	}
 }
 
@@ -125,13 +125,13 @@ func TestSchemaContractRoundTrip(t *testing.T) {
 	wf := ct["workflow"].(map[string]any)
 	if layout["title"] != "Data Utama" || layout["rows"].([]any)[0].(map[string]any)["columns"] != float64(2) ||
 		wf["initial"] != "draft" || len(wf["transitions"].([]any)) != 2 || wf["views"].([]any)[0].(map[string]any)["parent"] != "assets" {
-		t.Errorf("kontrak schema: %v", ct)
+		t.Errorf("schema contract: %v", ct)
 	}
 	if w := e.do("root", "POST", "/content-types", `{"uid":"x"}`); w.Code != 400 {
 		t.Errorf("schema invalid: %d", w.Code)
 	}
 	if w := e.do("root", "POST", "/content-types", vehicleSchema); w.Code != 409 {
-		t.Errorf("uid duplikat: %d", w.Code)
+		t.Errorf("duplicate uid: %d", w.Code)
 	}
 }
 
@@ -150,7 +150,7 @@ func TestEntryPermissions(t *testing.T) {
 	}
 	created := e.json(w)
 	if created["plate"] != "L 1" || created["workflowStatus"] != "draft" || created["createdBy"] != "editor" {
-		t.Errorf("kontrak entri: %v", created)
+		t.Errorf("entry contract: %v", created)
 	}
 	id := created["id"].(string)
 	if w := e.do("viewer", "GET", "/content-types/vehicle/entries?q=l", ""); w.Code != 200 || e.json(w)["total"] != float64(1) {
@@ -160,7 +160,7 @@ func TestEntryPermissions(t *testing.T) {
 		t.Errorf("viewer delete: %d", w.Code)
 	}
 	if w := e.do("nobody", "GET", "/content-types/vehicle/entries", ""); w.Code != 403 {
-		t.Errorf("tanpa izin list: %d", w.Code)
+		t.Errorf("list without permission: %d", w.Code)
 	}
 	if w := e.do("editor", "PUT", "/content-types/vehicle/entries/"+id, `{"plate":"L 1A"}`); w.Code != 200 {
 		t.Errorf("editor update: %d %s", w.Code, w.Body)
@@ -179,27 +179,27 @@ func TestWorkflowTransitionsAndViews(t *testing.T) {
 	if w := e.do("maker", "POST", "/content-types/vehicle/entries/"+id+"/transitions/approve", `{}`); w.Code != 403 {
 		t.Errorf("maker approve: %d", w.Code)
 	}
-	w := e.do("maker", "POST", "/content-types/vehicle/entries/"+id+"/transitions/submit", `{"note":"cek ya"}`)
+	w := e.do("maker", "POST", "/content-types/vehicle/entries/"+id+"/transitions/submit", `{"note":"please check"}`)
 	if w.Code != 200 || e.json(w)["workflowStatus"] != "submitted" {
 		t.Fatalf("submit: %d %s", w.Code, w.Body)
 	}
 	if w := e.do("maker", "PUT", "/content-types/vehicle/entries/"+id, `{"plate":"L 1B"}`); w.Code != 403 {
-		t.Errorf("edit saat submitted (terkunci): %d", w.Code)
+		t.Errorf("edit while submitted (locked): %d", w.Code)
 	}
 
-	// approver hanya punya izin view approval: list tanpa view ditolak, dengan view hanya status submitted.
+	// approver only has approval view permission: list without view is rejected, with view only status submitted.
 	if w := e.do("approver", "GET", "/content-types/vehicle/entries", ""); w.Code != 403 {
-		t.Errorf("approver list biasa: %d", w.Code)
+		t.Errorf("approver regular list: %d", w.Code)
 	}
 	w = e.do("approver", "GET", "/content-types/vehicle/entries?view=approval", "")
 	if w.Code != 200 || e.json(w)["total"] != float64(1) {
 		t.Fatalf("approver view: %d %s", w.Code, w.Body)
 	}
 	if w := e.do("approver", "GET", "/content-types/vehicle/entries/"+id+"?view=approval", ""); w.Code != 200 {
-		t.Errorf("approver detail lewat view: %d", w.Code)
+		t.Errorf("approver detail via view: %d", w.Code)
 	}
 	if w := e.do("approver", "GET", "/content-types/vehicle", ""); w.Code != 200 {
-		t.Errorf("approver baca schema: %d", w.Code)
+		t.Errorf("approver reads schema: %d", w.Code)
 	}
 	w = e.do("approver", "POST", "/content-types/vehicle/entries/"+id+"/transitions/approve", `{}`)
 	got := e.json(w)
@@ -207,7 +207,7 @@ func TestWorkflowTransitionsAndViews(t *testing.T) {
 		t.Errorf("approve: %d %v", w.Code, got)
 	}
 	if w := e.do("approver", "GET", "/content-types/vehicle/entries/"+id+"?view=approval", ""); w.Code != 403 {
-		t.Errorf("setelah approved, entri keluar dari view approval: %d", w.Code)
+		t.Errorf("after approval, the entry leaves the approval view: %d", w.Code)
 	}
 }
 
@@ -221,7 +221,7 @@ func TestExportCSV(t *testing.T) {
 	}
 	e.grant("ro", map[string][]string{"ct/vehicle": {"read"}})
 	if w := e.do("ro", "GET", "/content-types/vehicle/export", ""); w.Code != 403 {
-		t.Errorf("tanpa download: %d", w.Code)
+		t.Errorf("without download: %d", w.Code)
 	}
 	w := e.do("dl", "GET", "/content-types/vehicle/export", "")
 	body := w.Body.String()
@@ -229,7 +229,7 @@ func TestExportCSV(t *testing.T) {
 		t.Errorf("csv: %q", body)
 	}
 	if !strings.Contains(w.Header().Get("Content-Disposition"), "attachment") {
-		t.Error("harus attachment")
+		t.Error("must be an attachment")
 	}
 }
 
@@ -254,7 +254,7 @@ func TestMediaUploadAndServeHeaders(t *testing.T) {
 	h := w.Header()
 	if w.Code != 200 || h.Get("X-Content-Type-Options") != "nosniff" || h.Get("Content-Security-Policy") != "sandbox" ||
 		!strings.HasPrefix(h.Get("Content-Disposition"), "attachment") || strings.Count(h.Get("Content-Disposition"), `"`) != 2 {
-		t.Errorf("header keamanan: %d %v", w.Code, h)
+		t.Errorf("security headers: %d %v", w.Code, h)
 	}
 	if w := e.do("u2", "GET", "/media?ids="+id+",x", ""); w.Code != 200 || !strings.Contains(w.Body.String(), `"name"`) {
 		t.Errorf("meta: %d %s", w.Code, w.Body)
@@ -266,7 +266,7 @@ func TestIndexFailureIs502(t *testing.T) {
 	e.createVehicle()
 	e.index.Fail = true
 	if w := e.do("root", "GET", "/content-types/vehicle/entries", ""); w.Code != 502 {
-		t.Errorf("list saat ES mati: %d", w.Code)
+		t.Errorf("list while ES is down: %d", w.Code)
 	}
 }
 
@@ -309,7 +309,7 @@ func TestHistoryAndSoftDelete(t *testing.T) {
 		t.Fatalf("delete: %d %s", w.Code, w.Body)
 	}
 	if w := e.do("editor", "GET", "/content-types/vehicle/entries/"+id, ""); w.Code != 404 {
-		t.Errorf("entri terhapus: %d", w.Code)
+		t.Errorf("deleted entry: %d", w.Code)
 	}
 
 	w := e.do("editor", "GET", "/content-types/vehicle/entries/"+id+"/history", "")
@@ -322,10 +322,10 @@ func TestHistoryAndSoftDelete(t *testing.T) {
 	ch := upd["changes"].([]any)[0].(map[string]any)
 	if hist[0]["action"] != "create" || upd["action"] != "update" || hist[2]["action"] != "delete" ||
 		upd["byName"] != "editor" || upd["version"] != float64(2) || ch["field"] != "status" || ch["from"] != "Baik" || ch["to"] != "Rusak" {
-		t.Errorf("isi history: %v", hist)
+		t.Errorf("history content: %v", hist)
 	}
 	if w := e.do("nobody", "GET", "/content-types/vehicle/entries/"+id+"/history", ""); w.Code != 403 {
-		t.Errorf("history tanpa izin read: %d", w.Code)
+		t.Errorf("history without read permission: %d", w.Code)
 	}
 }
 
@@ -349,7 +349,7 @@ func TestDomainEndpointsAndField(t *testing.T) {
 		t.Fatalf("values: %d %s", w.Code, w.Body)
 	}
 	if w := e.do("viewer", "GET", "/domains/NOPE/values", ""); w.Code != 404 {
-		t.Errorf("domain tidak ada: %d", w.Code)
+		t.Errorf("missing domain: %d", w.Code)
 	}
 
 	schema := `{"uid":"task","label":"Task","parent":"renkon","displayField":"name","fields":[
@@ -363,28 +363,28 @@ func TestDomainEndpointsAndField(t *testing.T) {
 	}
 	ct := e.json(e.do("root", "GET", "/content-types/task", ""))
 	if f := ct["fields"].([]any)[1].(map[string]any); f["domain"] != "PRIORITY" || f["type"] != "domain" {
-		t.Errorf("kontrak field domain: %v", f)
+		t.Errorf("domain field contract: %v", f)
 	}
 	if af, _ := ct["fields"].([]any)[2].(map[string]any)["autoFill"].(map[string]any); af["source"] != "user" || af["lock"] != true {
-		t.Errorf("kontrak autoFill: %v", af)
+		t.Errorf("autoFill contract: %v", af)
 	}
 	if af, _ := ct["fields"].([]any)[3].(map[string]any)["autoFill"].(map[string]any); af["pattern"] != "V-{seq:3}" {
-		t.Errorf("kontrak pola kode: %v", af)
+		t.Errorf("code pattern contract: %v", af)
 	}
 	if w, _ := ct["fields"].([]any)[4].(map[string]any)["where"].([]any); len(w) != 1 || w[0].(map[string]any)["value"] != "{priority}" {
-		t.Errorf("kontrak where: %v", w)
+		t.Errorf("where contract: %v", w)
 	}
 	if w := e.do("viewer", "GET", "/classifications/nope/attributes", ""); w.Code != 404 {
-		t.Errorf("atribut classification tidak ada: %d", w.Code)
+		t.Errorf("missing classification attributes: %d", w.Code)
 	}
 	if got := e.json(e.do("root", "POST", "/content-types/task/autofill", `{"data":{"name":"A"}}`)); got["no"] != "V-001" || got["by"] == nil || got["name"] != nil {
 		t.Errorf("preview autofill: %v", got)
 	}
 	if w := e.do("viewer", "POST", "/content-types/task/autofill", `{"data":{}}`); w.Code != 403 {
-		t.Errorf("preview tanpa izin create: %d", w.Code)
+		t.Errorf("preview without create permission: %d", w.Code)
 	}
 	if w := e.do("root", "POST", "/content-types/task/entries", `{"name":"A","priority":"NOPE"}`); w.Code != 400 {
-		t.Errorf("nilai di luar domain: %d", w.Code)
+		t.Errorf("value outside the domain: %d", w.Code)
 	}
 	if got := e.json(e.do("root", "POST", "/content-types/task/entries", `{"name":"A"}`)); got["priority"] != "MEDIUM" {
 		t.Errorf("default domain: %v", got)
@@ -396,31 +396,31 @@ func TestUserProfileEndpoints(t *testing.T) {
 	schema := `{"uid":"user-profile","label":"Profil User","parent":"administration","hidden":true,"displayField":"note",
 	 "fields":[{"name":"note","label":"Catatan","type":"text"}]}`
 	if w := e.do("root", "POST", "/content-types", schema); w.Code != 201 {
-		t.Fatalf("schema profil: %d %s", w.Code, w.Body)
+		t.Fatalf("profile schema: %d %s", w.Code, w.Body)
 	}
 	if ct := e.json(e.do("root", "GET", "/content-types/user-profile", "")); ct["hidden"] != true {
-		t.Errorf("hidden hilang dari kontrak: %v", ct)
+		t.Errorf("hidden missing from contract: %v", ct)
 	}
 	e.grant("hr", map[string][]string{"ct/user-profile": {"read", "update"}})
 
 	if w := e.do("budi", "PUT", "/profiles/budi", `{"note":"x"}`); w.Code != 403 {
-		t.Errorf("user biasa tidak boleh mengubah profil (termasuk miliknya): %d", w.Code)
+		t.Errorf("a regular user must not change profiles (including their own): %d", w.Code)
 	}
 	w := e.do("hr", "PUT", "/profiles/budi", `{"note":"Teknisi lapangan"}`)
 	if w.Code != 200 || e.json(w)["id"] != "budi" {
-		t.Fatalf("hr upsert profil: %d %s", w.Code, w.Body)
+		t.Fatalf("hr upsert profile: %d %s", w.Code, w.Body)
 	}
 	if got := e.json(e.do("budi", "GET", "/profiles/me", "")); got["note"] != "Teknisi lapangan" || got["id"] != "budi" {
-		t.Errorf("profil sendiri: %v", got)
+		t.Errorf("own profile: %v", got)
 	}
 	if got := e.json(e.do("ani", "GET", "/profiles/me", "")); got["id"] != "ani" || got["version"] != float64(0) {
-		t.Errorf("belum punya profil = objek kosong versi 0: %v", got)
+		t.Errorf("no profile yet = empty object version 0: %v", got)
 	}
 	if w := e.do("ani", "GET", "/profiles/budi", ""); w.Code != 403 {
-		t.Errorf("user lain tanpa izin membaca profil orang: %d", w.Code)
+		t.Errorf("another user without permission reads someone else's profile: %d", w.Code)
 	}
 	if w := e.do("hr", "GET", "/profiles/budi", ""); w.Code != 200 {
-		t.Errorf("hr membaca profil: %d", w.Code)
+		t.Errorf("hr reads profile: %d", w.Code)
 	}
 }
 
@@ -447,24 +447,24 @@ func TestSiteScopingFromUserProfile(t *testing.T) {
 	e.grant("tek", map[string][]string{"ct/pole": {"read", "create"}})
 
 	if ct := e.json(e.do("root", "GET", "/content-types/pole", "")); ct["scopeField"] != "site" {
-		t.Errorf("scopeField hilang dari kontrak: %v", ct["scopeField"])
+		t.Errorf("scopeField missing from contract: %v", ct["scopeField"])
 	}
 	if got := e.json(e.do("tek", "GET", "/content-types/pole/entries", "")); got["total"] != float64(2) {
-		t.Errorf("teknisi melihat site akses (default S1 + S3) saja: %v", got["total"])
+		t.Errorf("technician sees only accessible sites (default S1 + S3): %v", got["total"])
 	}
 	if got := e.json(e.do("root", "GET", "/content-types/pole/entries", "")); got["total"] != float64(3) {
-		t.Errorf("superadmin melihat semua: %v", got["total"])
+		t.Errorf("superadmin sees everything: %v", got["total"])
 	}
 	created := e.json(e.do("tek", "POST", "/content-types/pole/entries", `{"code":"BARU"}`))
 	if created["site"] != "S1" {
-		t.Errorf("site otomatis dari default site profil: %v", created)
+		t.Errorf("site auto filled from the profile default site: %v", created)
 	}
 	if w := e.do("tek", "POST", "/content-types/pole/entries", `{"code":"X","site":"S2"}`); w.Code != 403 {
-		t.Errorf("site di luar akses: %d %s", w.Code, w.Body)
+		t.Errorf("site outside access: %d %s", w.Code, w.Body)
 	}
-	e.grant("baru", map[string][]string{"ct/pole": {"read"}}) // belum punya profil
+	e.grant("baru", map[string][]string{"ct/pole": {"read"}}) // no profile yet
 	if got := e.json(e.do("baru", "GET", "/content-types/pole/entries", "")); got["total"] != float64(0) {
-		t.Errorf("user tanpa profil/site tidak melihat data: %v", got["total"])
+		t.Errorf("user without profile/site sees no records: %v", got["total"])
 	}
 }
 
@@ -478,19 +478,19 @@ func TestTransitionInputs(t *testing.T) {
 	}
 	tf := e.json(e.do("root", "GET", "/content-types/dok", ""))["workflow"].(map[string]any)["transitions"].([]any)[0].(map[string]any)["fields"].([]any)
 	if len(tf) != 1 || tf[0].(map[string]any)["name"] != "jenis" {
-		t.Errorf("kontrak isian transisi: %v", tf)
+		t.Errorf("transition input contract: %v", tf)
 	}
 	id := e.json(e.do("root", "POST", "/content-types/dok/entries", `{"name":"A"}`))["id"].(string)
 	if w := e.do("root", "POST", "/content-types/dok/entries/"+id+"/transitions/submit", `{}`); w.Code != 400 {
-		t.Errorf("isian wajib kosong: %d %s", w.Code, w.Body)
+		t.Errorf("empty required input: %d %s", w.Code, w.Body)
 	}
 	if w := e.do("root", "POST", "/content-types/dok/entries/"+id+"/transitions/submit", `{"note":"ok","data":{"jenis":"BA"}}`); w.Code != 200 {
-		t.Fatalf("transisi: %d %s", w.Code, w.Body)
+		t.Fatalf("transition: %d %s", w.Code, w.Body)
 	}
 	var hist []map[string]any
 	json.Unmarshal(e.do("root", "GET", "/content-types/dok/entries/"+id+"/history", "").Body.Bytes(), &hist)
 	last := hist[len(hist)-1]
 	if last["transition"] != "submit" || last["data"].(map[string]any)["jenis"] != "BA" {
-		t.Errorf("riwayat isian transisi: %v", last)
+		t.Errorf("transition input history: %v", last)
 	}
 }

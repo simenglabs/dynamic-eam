@@ -1,4 +1,4 @@
-// Package role: aggregate Role (kumpulan izin RBAC per menu).
+// Package role: Role aggregate (a set of per-menu RBAC permissions).
 package role
 
 import (
@@ -16,14 +16,14 @@ const (
 	AllMenus   = common.AllMenus
 )
 
-// Permissions: kunci menu ("assets/tnd", "ct/<uid>", "*") -> aksi (common.Actions).
+// Permissions: menu key ("assets/tnd", "ct/<uid>", "*") -> actions (common.Actions).
 type Permissions map[string][]string
 
 type Role struct {
 	ID          string
 	Name        string
 	Description string
-	System      bool // role sistem: tidak bisa diubah/dihapus
+	System      bool // system role: cannot be edited/deleted
 	Permissions Permissions
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -36,7 +36,7 @@ var (
 
 func New(id, name, description string, perms Permissions, now time.Time) (*Role, error) {
 	if !idRe.MatchString(id) {
-		return nil, errs.Invalid("ID role tidak valid (huruf kecil, angka, '-')")
+		return nil, errs.Invalid("role ID is invalid (lowercase letters, digits, '-')")
 	}
 	r := &Role{ID: id, CreatedAt: now}
 	if err := r.apply(name, description, perms, now); err != nil {
@@ -47,17 +47,17 @@ func New(id, name, description string, perms Permissions, now time.Time) (*Role,
 
 func (r *Role) Edit(name, description string, perms Permissions, now time.Time) error {
 	if r.System {
-		return errs.Forbidden("role sistem tidak bisa diubah")
+		return errs.Forbidden("system role cannot be edited")
 	}
 	return r.apply(name, description, perms, now)
 }
 
 func (r *Role) CanDelete(usersWithRole int) error {
 	if r.System {
-		return errs.Forbidden("role sistem tidak bisa dihapus")
+		return errs.Forbidden("system role cannot be deleted")
 	}
 	if usersWithRole > 0 {
-		return errs.Conflict("role masih dipakai oleh %d user; lepas dulu dari user", usersWithRole)
+		return errs.Conflict("role is still used by %d user(s); remove it from those users first", usersWithRole)
 	}
 	return nil
 }
@@ -65,16 +65,16 @@ func (r *Role) CanDelete(usersWithRole int) error {
 func (r *Role) apply(name, description string, perms Permissions, now time.Time) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
-		return errs.Invalid("nama role wajib diisi")
+		return errs.Invalid("role name is required")
 	}
 	clean := Permissions{}
 	for key, actions := range perms {
 		if !keyRe.MatchString(key) {
-			return errs.Invalid("kunci menu tidak valid: %s", key)
+			return errs.Invalid("menu key is invalid: %s", key)
 		}
 		for _, a := range actions {
 			if !slices.Contains(common.Actions, a) {
-				return errs.Invalid("aksi tidak dikenal: %s", a)
+				return errs.Invalid("unknown action: %s", a)
 			}
 		}
 		if len(actions) > 0 {
@@ -85,11 +85,11 @@ func (r *Role) apply(name, description string, perms Permissions, now time.Time)
 	return nil
 }
 
-// Defaults: role bawaan yang di-seed saat service start (bila belum ada).
+// Defaults: built-in roles seeded at service start (if missing).
 func Defaults(now time.Time) []*Role {
 	return []*Role{
-		{ID: SuperAdmin, Name: "Super Admin", Description: "Semua akses, termasuk Content-Type Builder", System: true, Permissions: Permissions{}, CreatedAt: now, UpdatedAt: now},
-		{ID: "admin", Name: "Admin", Description: "Semua menu, semua aksi", Permissions: Permissions{AllMenus: common.Actions}, CreatedAt: now, UpdatedAt: now},
-		{ID: "user", Name: "User", Description: "Lihat semua menu", Permissions: Permissions{AllMenus: {common.Read}}, CreatedAt: now, UpdatedAt: now},
+		{ID: SuperAdmin, Name: "Super Admin", Description: "Full access, including Content-Type Builder", System: true, Permissions: Permissions{}, CreatedAt: now, UpdatedAt: now},
+		{ID: "admin", Name: "Admin", Description: "All menus, all actions", Permissions: Permissions{AllMenus: common.Actions}, CreatedAt: now, UpdatedAt: now},
+		{ID: "user", Name: "User", Description: "View all menus", Permissions: Permissions{AllMenus: {common.Read}}, CreatedAt: now, UpdatedAt: now},
 	}
 }

@@ -3,7 +3,7 @@
 import { useEffect, useRef, type ComponentProps, type ReactNode } from "react";
 import { Check, Minus } from "lucide-react";
 
-// Checkbox custom di atas <input type="checkbox"> bawaan: keyboard, label, FormData, dan required tetap jalan.
+// Custom checkbox over a native <input type="checkbox">: keyboard, label, FormData and required still work.
 export function Checkbox({ label, indeterminate, className, ...p }: Omit<ComponentProps<"input">, "type"> & { label?: ReactNode; indeterminate?: boolean }) {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {

@@ -10,8 +10,8 @@ export class ApiError extends Error {
   }
 }
 
-// Server only: panggil service Go zone langsung, token user diteruskan sebagai Bearer.
-// Env <ZONE>_API_URL (mis. WORK_ORDER_API_URL) untuk prod.
+// Server only: calls the zone's Go service directly, forwarding the user token as Bearer.
+// Env <ZONE>_API_URL (e.g. WORK_ORDER_API_URL) for prod.
 export async function api<T>(zone: string, path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
   const base =
     process.env[`${zone.toUpperCase().replace(/-/g, "_")}_API_URL`] ??
@@ -31,13 +31,13 @@ export async function api<T>(zone: string, path: string, init: { method?: string
 export type Access = { userId: string; roles: string[]; superAdmin: boolean; permissions: Record<string, string[]> };
 export type Me = { id: string; username: string; name: string; access: Access };
 
-// Profil + izin efektif user (RBAC), sekali per request. null = belum login / sesi tidak valid.
+// User profile + effective permissions (RBAC), once per request. null = not logged in / invalid session.
 export const getMe = cache(async (): Promise<Me | null> => {
   if (!(await cookies()).get(TOKEN_COOKIE)) return null;
   return api<Me>("administration", "/auth/me").catch(() => null);
 });
 
-// Untuk menyembunyikan menu/tombol. Penegakan sebenarnya tetap di service Go.
+// For hiding menus/buttons. Actual enforcement stays in the Go service.
 export function can(me: Me | null, key: string, action: "read" | "create" | "update" | "delete" | "download"): boolean {
   if (!me) return false;
   const p = me.access.permissions;

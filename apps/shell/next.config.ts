@@ -3,8 +3,8 @@ import { MENU } from "../../packages/ui/src/menu";
 
 const env = (zone: string, kind: "WEB" | "API") => process.env[`${zone.toUpperCase().replace(/-/g, "_")}_${kind}_URL`];
 
-// Shell = satu-satunya pintu masuk browser. Tiap menu besar di-rewrite ke zone-nya,
-// /api/<zone>/* di-rewrite ke service Go-nya (untuk fetch dari client component).
+// Shell = the browser's single entry point. Each top-level menu is rewritten to its zone,
+// /api/<zone>/* is rewritten to its Go service (for fetches from client components).
 const nextConfig: NextConfig = {
   transpilePackages: ["@eam/ui"],
   async redirects() {

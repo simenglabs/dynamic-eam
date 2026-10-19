@@ -7,7 +7,7 @@ import (
 	"eam/services/common/errs"
 )
 
-// Layout form entri: urutan section -> baris -> kolom. Diatur superadmin di builder.
+// Entry form layout: section -> row -> column order. Set by the superadmin in the builder.
 type Layout struct {
 	Sections []Section
 }
@@ -18,7 +18,7 @@ type Section struct {
 	Rows  []Row
 }
 
-// Row: Columns = jumlah kolom grid (1 baris berapa field); Fields berurutan kiri ke kanan, "" = slot kosong.
+// Row: Columns = number of grid columns (fields per row); Fields ordered left to right, "" = empty slot.
 type Row struct {
 	Columns int
 	Fields  []string
@@ -32,31 +32,31 @@ func (l *Layout) validate(fields []Field) error {
 	ids, placed := map[string]bool{}, map[string]bool{}
 	for _, s := range l.Sections {
 		if !sectionIDRe.MatchString(s.ID) {
-			return errs.Invalid("ID section %q tidak valid", s.ID)
+			return errs.Invalid("section ID %q is invalid", s.ID)
 		}
 		if ids[s.ID] {
-			return errs.Invalid("ID section %q duplikat", s.ID)
+			return errs.Invalid("duplicate section ID %q", s.ID)
 		}
 		ids[s.ID] = true
 		if s.Title == "" {
-			return errs.Invalid("judul section wajib diisi")
+			return errs.Invalid("section title is required")
 		}
 		for _, r := range s.Rows {
 			if r.Columns < 1 || r.Columns > MaxColumns {
-				return errs.Invalid("section %s: jumlah kolom harus 1-%d", s.Title, MaxColumns)
+				return errs.Invalid("section %s: number of columns must be 1-%d", s.Title, MaxColumns)
 			}
 			if len(r.Fields) > r.Columns {
-				return errs.Invalid("section %s: field dalam satu baris melebihi jumlah kolom", s.Title)
+				return errs.Invalid("section %s: fields in a row exceed the number of columns", s.Title)
 			}
 			for _, name := range r.Fields {
 				if name == "" {
 					continue
 				}
 				if !slices.ContainsFunc(fields, func(f Field) bool { return f.Name == name }) {
-					return errs.Invalid("layout merujuk field %q yang tidak ada", name)
+					return errs.Invalid("layout references a field %q that does not exist", name)
 				}
 				if placed[name] {
-					return errs.Invalid("field %q ditempatkan lebih dari sekali", name)
+					return errs.Invalid("field %q is placed more than once", name)
 				}
 				placed[name] = true
 			}
@@ -67,8 +67,8 @@ func (l *Layout) validate(fields []Field) error {
 
 const defaultColumns = 2
 
-// EffectiveLayout: layout untuk render form. Tanpa layout = satu section "Umum" 2 kolom.
-// Field yang belum ditempatkan ditambahkan ke section terakhir; rujukan ke field yang sudah dihapus jadi slot kosong.
+// EffectiveLayout: layout used to render the form. No layout = one 2-column "General" section.
+// Unplaced fields are appended to the last section; references to removed fields become empty slots.
 func (ct *ContentType) EffectiveLayout() Layout {
 	var l Layout
 	if ct.Layout != nil {
@@ -103,7 +103,7 @@ func (ct *ContentType) EffectiveLayout() Layout {
 		return l
 	}
 	if len(l.Sections) == 0 {
-		l.Sections = []Section{{ID: "umum", Title: "Umum"}}
+		l.Sections = []Section{{ID: "umum", Title: "General"}}
 	}
 	last := &l.Sections[len(l.Sections)-1]
 	for chunk := range slices.Chunk(rest, defaultColumns) {

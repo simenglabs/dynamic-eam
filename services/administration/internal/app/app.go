@@ -1,5 +1,5 @@
-// Package app: use case administration (login, kelola user, kelola role).
-// Bergantung hanya pada port domain; implementasi konkret disuntikkan dari main.go.
+// Package app: administration use cases (login, manage users, manage roles).
+// Depends only on domain ports; concrete implementations are injected from main.go.
 package app
 
 import (
@@ -9,7 +9,7 @@ import (
 	"eam/services/administration/internal/domain/user"
 )
 
-// TokenIssuer: port penerbit token sesi (JWT di infra).
+// TokenIssuer: session token issuer port (JWT in infra).
 type TokenIssuer interface {
 	Issue(u *user.User) (token string, ttl time.Duration, err error)
 }
@@ -23,7 +23,7 @@ type Deps struct {
 	NewID  func() string
 }
 
-// Actor: user yang menjalankan aksi (dari hak akses RBAC).
+// Actor: the user performing the action (from RBAC access).
 type Actor struct {
 	UserID     string
 	SuperAdmin bool

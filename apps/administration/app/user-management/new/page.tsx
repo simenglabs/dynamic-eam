@@ -5,7 +5,7 @@ export default async function NewUser() {
   const me = await getMe();
   const crumbs = ["Administration", "Users Management", "New"];
   if (!can(me, "administration/user-management", "create"))
-    return (<><PageHeader crumbs={crumbs} title="Add New User" /><div className="px-8 py-4"><Alert>Anda tidak punya akses.</Alert></div></>);
+    return (<><PageHeader crumbs={crumbs} title="Add New User" /><div className="px-8 py-4"><Alert>You don't have access.</Alert></div></>);
   const roles = await api<{ id: string; name: string }[]>("administration", "/roles");
   return (
     <>

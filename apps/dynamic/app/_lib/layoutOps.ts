@@ -1,4 +1,4 @@
-// Operasi drag & drop layout (murni, tidak memutasi input). Diuji di layoutOps.test.ts.
+// Layout drag & drop operations (pure, never mutate input). Tested in layoutOps.test.ts.
 import type { Layout } from "./types";
 
 export type Cell = { si: number; ri: number; ci: number };
@@ -13,7 +13,7 @@ function setCell(l: Layout, c: Cell, name: string) {
   row.fields[c.ci] = name;
 }
 
-// placeField: taruh field di sel `to`. Dari sel lain = tukar isi; dari baki (from undefined) = isi lama kembali ke baki.
+// placeField: put a field in cell `to`. From another cell = swap; from the tray (from undefined) = old content returns to the tray.
 export function placeField(layout: Layout, name: string, from: Cell | undefined, to: Cell): Layout {
   const l = clone(layout);
   const prev = l.sections[to.si].rows[to.ri].fields[to.ci] ?? "";
@@ -28,7 +28,7 @@ export function unplaceField(layout: Layout, from: Cell): Layout {
   return l;
 }
 
-// moveRow: pindah baris ke posisi sebelum baris `to` (boleh lintas section). to.ri = jumlah baris = taruh di akhir.
+// moveRow: move a row before row `to` (may cross sections). to.ri = row count = append at end.
 export function moveRow(layout: Layout, from: RowPos, to: RowPos): Layout {
   const l = clone(layout);
   const [row] = l.sections[from.si].rows.splice(from.ri, 1);

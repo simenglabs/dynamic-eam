@@ -19,7 +19,7 @@ func (fakeTokens) Issue(u *user.User) (string, time.Duration, error) {
 	return "tok-" + u.ID, time.Hour, nil
 }
 
-// testEnv: semua use case dengan dependency palsu + role bawaan + superadmin "root".
+// testEnv: all use cases with fake dependencies + built-in roles + superadmin "root".
 type testEnv struct {
 	users *memory.Users
 	roles *memory.Roles

@@ -10,27 +10,27 @@ import (
 	"eam/services/common/errs"
 )
 
-// Sumber isi otomatis.
+// Auto fill sources.
 const (
-	AutoRelation = "relation" // nilai Field dari entri yang dipilih di field relasi From
-	AutoProfile  = "profile"  // nilai Field dari profil user (user-profile)
-	AutoToday    = "today"    // tanggal hari ini (YYYY-MM-DD)
-	AutoUser     = "user"     // user yang sedang login: nama (field teks) atau ID (relasi ke profil user)
+	AutoRelation = "relation" // value of Field from the entry selected in the From relation field
+	AutoProfile  = "profile"  // value of Field from the user profile (user-profile)
+	AutoToday    = "today"    // today's date (YYYY-MM-DD)
+	AutoUser     = "user"     // the logged-in user: name (text field) or ID (relation to user profile)
 )
 
-// AutoFill: field diisi otomatis. Lock = selalu dihitung ulang server (tidak bisa diedit user);
-// tanpa Lock hanya mengisi bila kosong.
+// AutoFill: an auto-filled field. Lock = always recomputed by the server (not user-editable);
+// without Lock it only fills when empty.
 type AutoFill struct {
 	Source  string
-	From    string // AutoRelation: nama field relasi (tunggal) di content type ini
-	Field   string // AutoRelation: field di entri target; AutoProfile: field profil
-	Pattern string // AutoPattern: pola kode (lihat pattern.go)
+	From    string // AutoRelation: name of the (single) relation field in this content type
+	Field   string // AutoRelation: field on the target entry; AutoProfile: profile field
+	Pattern string // AutoPattern: code pattern (see pattern.go)
 	Lock    bool
 }
 
-// AutoFillSources: data luar yang dibutuhkan ApplyAutoFill (disiapkan app layer).
+// AutoFillSources: external data needed by ApplyAutoFill (prepared by the app layer).
 type AutoFillSources struct {
-	Related func(relationField, id string) map[string]any // data entri target relasi (nil bila tidak ada)
+	Related func(relationField, id string) map[string]any // relation target entry data (nil if none)
 	Profile map[string]any
 	Actor   Actor
 	Now     time.Time
@@ -43,20 +43,20 @@ func (ct *ContentType) validateAutoFill() error {
 			continue
 		}
 		if f.Type == TComponent || f.Type == TMedia {
-			return errs.Invalid("field %q: isi otomatis tidak untuk tipe %s", f.Name, f.Type)
+			return errs.Invalid("field %q: auto fill is not available for type %s", f.Name, f.Type)
 		}
 		switch af.Source {
 		case AutoRelation:
 			i := slices.IndexFunc(ct.Fields, func(x Field) bool { return x.Name == af.From })
 			if i < 0 || af.From == f.Name || ct.Fields[i].Type != TRelation || ct.Fields[i].Multiple {
-				return errs.Invalid("field %q: isi otomatis harus dari field relasi tunggal", f.Name)
+				return errs.Invalid("field %q: auto fill must come from a single relation field", f.Name)
 			}
 			if af.Field == "" {
-				return errs.Invalid("field %q: pilih field yang diambil dari %s", f.Name, af.From)
+				return errs.Invalid("field %q: choose the field to take from %s", f.Name, af.From)
 			}
 		case AutoProfile:
 			if af.Field == "" {
-				return errs.Invalid("field %q: pilih field profil", f.Name)
+				return errs.Invalid("field %q: choose a profile field", f.Name)
 			}
 		case AutoPattern:
 			if err := ct.validatePattern(f); err != nil {
@@ -64,17 +64,17 @@ func (ct *ContentType) validateAutoFill() error {
 			}
 		case AutoUser:
 			if f.Type == TRelation && f.Target != ProfileUID || f.Type != TRelation && f.Type != TText && f.Type != TLongText {
-				return errs.Invalid("field %q: isi dari user hanya untuk teks atau relasi ke %s", f.Name, ProfileUID)
+				return errs.Invalid("field %q: fill from user is only for text or a relation to %s", f.Name, ProfileUID)
 			}
 		case AutoToday:
 		default:
-			return errs.Invalid("field %q: sumber isi otomatis tidak dikenal: %q", f.Name, af.Source)
+			return errs.Invalid("field %q: unknown auto fill source: %q", f.Name, af.Source)
 		}
 	}
 	return nil
 }
 
-// RelatedSources: field relasi yang dipakai isi otomatis (supaya app layer hanya memuat target yang perlu).
+// RelatedSources: relation fields used by auto fill (so the app layer only loads the needed targets).
 func (ct *ContentType) RelatedSources() []string {
 	var out []string
 	for _, f := range ct.Fields {
@@ -85,7 +85,7 @@ func (ct *ContentType) RelatedSources() []string {
 	return out
 }
 
-// ApplyAutoFill mengembalikan salinan data dengan field isi otomatis terisi (input tidak dimutasi).
+// ApplyAutoFill returns a copy of the data with auto fill fields filled in (input is not mutated).
 func (ct *ContentType) ApplyAutoFill(data map[string]any, src AutoFillSources) map[string]any {
 	out := maps.Clone(data)
 	if out == nil {
@@ -116,7 +116,7 @@ func (ct *ContentType) ApplyAutoFill(data map[string]any, src AutoFillSources) m
 			}
 		}
 		if r := reflect.ValueOf(v); !f.Multiple && r.Kind() == reflect.Slice {
-			v = nil // list (mis. profil "sites") ke field tunggal: ambil yang pertama
+			v = nil // list (e.g. profile "sites") into a single field: take the first
 			if r.Len() > 0 {
 				v = r.Index(0).Interface()
 			}
@@ -127,7 +127,7 @@ func (ct *ContentType) ApplyAutoFill(data map[string]any, src AutoFillSources) m
 			}
 		}
 		if isEmpty(v) {
-			delete(out, f.Name) // terkunci & sumber kosong = ikut kosong
+			delete(out, f.Name) // locked & empty source = left empty
 		} else {
 			out[f.Name] = v
 		}

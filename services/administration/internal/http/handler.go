@@ -1,4 +1,4 @@
-// Package http: adapter HTTP (gin) untuk use case administration. DTO JSON = kontrak frontend.
+// Package http: HTTP (gin) adapter for administration use cases. JSON DTOs = frontend contract.
 package http
 
 import (
@@ -14,13 +14,13 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Kunci menu RBAC milik service ini (sama dengan path di packages/ui/src/menu.ts).
+// RBAC menu keys owned by this service (same as the paths in packages/ui/src/menu.ts).
 const (
 	PermUsers = "administration/user-management"
 	PermRoles = "administration/role"
 )
 
-// Authorizer: port RBAC (common.Authz di produksi).
+// Authorizer: RBAC port (common.Authz in production).
 type Authorizer interface {
 	Access(c *gin.Context) (*common.Access, error)
 	Require(key, action string) gin.HandlerFunc
@@ -48,7 +48,7 @@ func Register(rg *gin.RouterGroup, auth *app.Auth, users *app.Users, roles *app.
 	a.PUT("/users/:id", az.Require(PermUsers, common.Update), h.updateUser)
 	a.DELETE("/users/:id", az.Require(PermUsers, common.Delete), h.deleteUser)
 
-	// List role juga dibutuhkan form user (pilih role).
+	// The role list is also needed by the user form (role picker).
 	a.GET("/roles", az.RequireAny(common.Read, PermRoles, PermUsers), h.listRoles)
 	a.GET("/roles/:id", az.Require(PermRoles, common.Read), h.getRole)
 	a.POST("/roles", az.Require(PermRoles, common.Create), h.createRole)
@@ -262,7 +262,7 @@ func (h *handler) updateRole(c *gin.Context) {
 		return
 	}
 	r, err := h.roles.Update(c, c.Param("id"), in.toApp())
-	h.az.Forget("") // izin semua user pemegang role ini berubah
+	h.az.Forget("") // permissions of every user holding this role change
 	if err != nil {
 		httpx.Error(c, err)
 		return

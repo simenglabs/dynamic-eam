@@ -8,9 +8,9 @@ import (
 	"eam/services/common/errs"
 )
 
-// Condition: filter pilihan relasi — field di entri target = Value.
-// Value literal ("GUDANG") atau "{field}" = nilai field lain di form ini (dropdown bertingkat, mis. lokasi per site).
-// Field "workflowStatus" = status workflow entri target.
+// Condition: relation option filter — field on the target entry = Value.
+// Literal Value ("GUDANG") or "{field}" = value of another field in this form (cascading dropdown, e.g. location per site).
+// Field "workflowStatus" = workflow status of the target entry.
 type Condition struct {
 	Field string
 	Value string
@@ -25,26 +25,26 @@ func (c Condition) ref() (string, bool) {
 
 func validateWhere(f Field, siblings []Field, inComponent bool) error {
 	if len(f.Where) > 0 && f.Type != TRelation {
-		return errs.Invalid("field %q: filter (where) hanya untuk relasi", f.Name)
+		return errs.Invalid("field %q: filter (where) is only for relations", f.Name)
 	}
 	for _, c := range f.Where {
 		if !fieldRe.MatchString(c.Field) && c.Field != StatusField {
-			return errs.Invalid("field %q: field filter %q tidak valid", f.Name, c.Field)
+			return errs.Invalid("field %q: filter field %q is invalid", f.Name, c.Field)
 		}
 		if strings.TrimSpace(c.Value) == "" {
-			return errs.Invalid("field %q: nilai filter %s wajib diisi", f.Name, c.Field)
+			return errs.Invalid("field %q: filter value %s is required", f.Name, c.Field)
 		}
 		if name, ok := c.ref(); ok && (inComponent || name == f.Name || !slices.ContainsFunc(siblings, func(x Field) bool { return x.Name == name })) {
-			return errs.Invalid("field %q: filter mengacu field {%s} yang tidak ada di form", f.Name, name)
+			return errs.Invalid("field %q: filter references field {%s} that is not in the form", f.Name, name)
 		}
 	}
 	return nil
 }
 
-// StatusField: nama field filter untuk status workflow entri target.
+// StatusField: filter field name for the target entry's workflow status.
 const StatusField = "workflowStatus"
 
-// Filters: kondisi where dengan nilai terisi dari data form. Ref yang kosong = kondisinya diabaikan.
+// Filters: where conditions with values filled from the form data. An empty ref = the condition is ignored.
 func (f Field) Filters(data map[string]any) []Scope {
 	var out []Scope
 	for _, c := range f.Where {
@@ -60,7 +60,7 @@ func (f Field) Filters(data map[string]any) []Scope {
 	return out
 }
 
-// Matches: entri target memenuhi semua filter (field list cocok bila salah satu elemennya cocok).
+// Matches: the target entry satisfies all filters (a list field matches if any element matches).
 func Matches(e *Entry, filters []Scope) bool {
 	for _, s := range filters {
 		var v any = e.Status

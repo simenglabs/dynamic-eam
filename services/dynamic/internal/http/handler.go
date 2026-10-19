@@ -1,4 +1,4 @@
-// Package http: adapter HTTP (gin) untuk menu dinamis. Izin RBAC dicek di sini sebelum memanggil use case.
+// Package http: HTTP adapter (gin) for dynamic menus. RBAC permissions are checked here before calling use cases.
 package http
 
 import (
@@ -21,7 +21,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Authorizer: port RBAC (common.Authz di produksi). Can menulis 403 sendiri bila ditolak.
+// Authorizer: RBAC port (common.Authz in production). Can writes the 403 itself when denied.
 type Authorizer interface {
 	Access(c *gin.Context) (*common.Access, error)
 	Can(c *gin.Context, key, action string) bool
@@ -38,7 +38,7 @@ type handler struct {
 func Register(rg *gin.RouterGroup, schemas *app.Schemas, entries *app.Entries, media *app.Media, az Authorizer) {
 	h := &handler{schemas, entries, media, az}
 	a := rg.Group("", common.Auth())
-	super := az.SuperAdmin() // Content-Type Builder & Components khusus superadmin
+	super := az.SuperAdmin() // Content-Type Builder & Components are superadmin only
 
 	a.GET("/content-types", h.listContentTypes)
 	a.GET("/content-types/:uid", h.getContentType)
@@ -63,12 +63,12 @@ func Register(rg *gin.RouterGroup, schemas *app.Schemas, entries *app.Entries, m
 	a.POST("/content-types/:uid/autofill", h.autofill)
 	a.GET("/content-types/:uid/export", h.export)
 
-	// Profil user (content type user-profile, ID entri = ID user).
+	// User profile (content type user-profile, entry ID = user ID).
 	a.GET("/profiles/me", h.myProfile)
 	a.GET("/profiles/:userId", h.getProfile)
 	a.PUT("/profiles/:userId", h.putProfile)
 
-	// Domain: dibaca semua user login (data referensi untuk dropdown & builder).
+	// Domain: readable by every logged-in user (reference data for dropdowns & builder).
 	a.GET("/domains", h.domains)
 	a.GET("/classifications/:id/attributes", h.classAttributes)
 	a.GET("/domains/:code/values", h.domainValues)
@@ -91,7 +91,7 @@ func (h *handler) listContentTypes(c *gin.Context) {
 	c.JSON(http.StatusOK, mapAll(list, toContentTypeDTO))
 }
 
-// getContentType: boleh dengan izin read content type ATAU izin salah satu view-nya.
+// getContentType: allowed with read permission on the content type OR permission on one of its views.
 func (h *handler) getContentType(c *gin.Context) {
 	ct, err := h.schemas.GetContentType(c, c.Param("uid"))
 	if err != nil {
@@ -108,7 +108,7 @@ func (h *handler) getContentType(c *gin.Context) {
 		ok = ok || slices.ContainsFunc(ct.Workflow.Views, func(v content.View) bool { return acc.Can(content.ViewPermKey(ct.UID, v.Key), common.Read) })
 	}
 	if !ok {
-		fail(c, errs.Forbidden("tidak punya izin read pada %s", ct.Label))
+		fail(c, errs.Forbidden("you don't have read permission on %s", ct.Label))
 		return
 	}
 	c.JSON(http.StatusOK, toContentTypeDTO(ct))
@@ -210,7 +210,7 @@ func (h *handler) deleteComponent(c *gin.Context) {
 
 // ---------- entries ----------
 
-// readScope: tanpa ?view = izin read content type; dengan ?view=<key> = izin read view tsb dan dibatasi statusnya.
+// readScope: without ?view = read permission on the content type; with ?view=<key> = read permission on that view, restricted to its statuses.
 func (h *handler) readScope(c *gin.Context) (*content.ContentType, []string, bool) {
 	ct, err := h.schemas.GetContentType(c, c.Param("uid"))
 	if err != nil {
@@ -237,8 +237,8 @@ func (h *handler) can(c *gin.Context, action string) bool {
 	return h.az.Can(c, content.PermKey(c.Param("uid")), action)
 }
 
-// actor: user dari token + status superadmin + penempatan dari profil user (sekali per request).
-// Dipakai untuk riwayat, pembatasan data per site, dan isi otomatis site/organisasi.
+// actor: user from the token + superadmin status + placement from the user profile (once per request).
+// Used for history, per-site record restriction, and site/organization auto fill.
 func (h *handler) actor(c *gin.Context) content.Actor {
 	if v, ok := c.Get("actor"); ok {
 		return v.(content.Actor)
@@ -250,7 +250,7 @@ func (h *handler) actor(c *gin.Context) content.Actor {
 	}
 	a, err := h.entries.ActorFor(c, u.Subject, u.Name, super)
 	if err != nil {
-		// ponytail: gagal baca profil = tanpa site (aman: data yang dibatasi tidak terlihat), tidak menggagalkan request.
+		// ponytail: failing to read the profile = no sites (safe: restricted records are hidden); it does not fail the request.
 		a = content.Actor{ID: u.Subject, Name: u.Name, Super: super}
 	}
 	c.Set("actor", a)
@@ -264,7 +264,7 @@ func (h *handler) listEntries(c *gin.Context) {
 	}
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	size, _ := strconv.Atoi(c.DefaultQuery("size", "10"))
-	// ?status=a,b: filter status untuk pemegang izin read content type (view sudah membatasi statusnya sendiri).
+	// ?status=a,b: status filter for holders of read permission on the content type (views already restrict their own statuses).
 	if states == nil && c.Query("status") != "" {
 		states = strings.Split(c.Query("status"), ",")
 	}
@@ -287,13 +287,13 @@ func (h *handler) getEntry(c *gin.Context) {
 		return
 	}
 	if states != nil && !slices.Contains(states, e.Status) {
-		fail(c, errs.Forbidden("data ini tidak termasuk view tersebut"))
+		fail(c, errs.Forbidden("this record is not part of that view"))
 		return
 	}
 	c.JSON(http.StatusOK, toEntryDTO(e))
 }
 
-// history: audit trail (create/update/delete/transisi). Izin read content type; tetap bisa dibaca setelah entri dihapus.
+// history: audit trail (create/update/delete/transition). Read permission on the content type; still readable after the entry is deleted.
 func (h *handler) history(c *gin.Context) {
 	if !h.can(c, common.Read) {
 		return
@@ -319,7 +319,7 @@ func (h *handler) createEntry(c *gin.Context) {
 	c.JSON(http.StatusCreated, toEntryDTO(e))
 }
 
-// autofill: preview field isi otomatis untuk form (realtime), body {id?, data}.
+// autofill: preview auto fill fields for the form (realtime), body {id?, data}.
 func (h *handler) autofill(c *gin.Context) {
 	var body struct {
 		ID   string         `json:"id"`
@@ -374,9 +374,9 @@ func (h *handler) transition(c *gin.Context) {
 	}
 	var in struct {
 		Note string         `json:"note"`
-		Data map[string]any `json:"data"` // isian form transisi
+		Data map[string]any `json:"data"` // transition form input
 	}
-	c.ShouldBindJSON(&in) // body opsional
+	c.ShouldBindJSON(&in) // optional body
 	e, err := h.entries.Transition(c, uid, c.Param("id"), key, h.actor(c), strings.TrimSpace(in.Note), in.Data)
 	if err != nil {
 		fail(c, err)
@@ -397,7 +397,7 @@ func (h *handler) options(c *gin.Context) {
 	c.JSON(http.StatusOK, mapAll(opts, func(o app.Option) gin.H { return gin.H{"id": o.ID, "label": o.Label} }))
 }
 
-// export: semua entri sebagai CSV (aksi "download").
+// export: all entries as CSV (the "download" action).
 func (h *handler) export(c *gin.Context) {
 	if !h.can(c, common.Download) {
 		return
@@ -409,7 +409,7 @@ func (h *handler) export(c *gin.Context) {
 	}
 	c.Header("Content-Type", "text/csv; charset=utf-8")
 	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s-%s.csv"`, ct.UID, time.Now().Format("20060102-1504")))
-	c.Writer.WriteString("\xEF\xBB\xBF") // BOM supaya Excel membaca UTF-8
+	c.Writer.WriteString("\xEF\xBB\xBF") // BOM so Excel reads UTF-8
 	w := csv.NewWriter(c.Writer)
 	head := append([]string{"id"}, mapAll(ct.Fields, func(f content.Field) string { return f.Label })...)
 	if ct.Workflow != nil {
@@ -442,11 +442,11 @@ func csvCell(v any) string {
 	return httpx.CSVSafe(s)
 }
 
-// ---------- profil user ----------
+// ---------- user profile ----------
 
-// profile: entri profil, atau objek kosong (versi 0) bila belum dibuat.
+// profile: the profile entry, or an empty object (version 0) if not created yet.
 func (h *handler) profile(c *gin.Context, userID string) {
-	e, err := h.entries.Get(c, content.ProfileUID, userID, content.Actor{ID: userID, Super: true}) // profil tidak dibatasi site; izin dicek pemanggil
+	e, err := h.entries.Get(c, content.ProfileUID, userID, content.Actor{ID: userID, Super: true}) // profiles are not site-restricted; the caller checks permissions
 	if errs.KindOf(err) == errs.KindNotFound {
 		c.JSON(http.StatusOK, gin.H{"id": userID, "version": 0})
 		return
@@ -458,7 +458,7 @@ func (h *handler) profile(c *gin.Context, userID string) {
 	c.JSON(http.StatusOK, toEntryDTO(e))
 }
 
-// myProfile: siapa pun boleh membaca profilnya sendiri.
+// myProfile: anyone may read their own profile.
 func (h *handler) myProfile(c *gin.Context) { h.profile(c, common.CurrentUser(c).Subject) }
 
 func (h *handler) getProfile(c *gin.Context) {
@@ -468,8 +468,8 @@ func (h *handler) getProfile(c *gin.Context) {
 	h.profile(c, c.Param("userId"))
 }
 
-// putProfile: mengubah profil (termasuk milik sendiri) butuh izin update ct/user-profile —
-// profil berisi penempatan (site/organisasi) yang menentukan akses, jadi tidak boleh diubah sendiri.
+// putProfile: changing a profile (including your own) needs update permission on ct/user-profile —
+// the profile holds the placement (site/organization) that determines access, so users must not change it themselves.
 func (h *handler) putProfile(c *gin.Context) {
 	var data map[string]any
 	if !h.az.Can(c, content.PermKey(content.ProfileUID), common.Update) || !httpx.Bind(c, &data) {
@@ -485,8 +485,8 @@ func (h *handler) putProfile(c *gin.Context) {
 
 // ---------- domain ----------
 
-// classAttributes: atribut sebuah classification (termasuk warisan induk) untuk form field bertipe attributes.
-// Hanya definisi (kode, label, tipe, satuan, nilai domain) — bukan data entri — jadi cukup login.
+// classAttributes: attributes of a classification (including inherited ones) for attributes-type form fields.
+// Definitions only (code, label, type, unit, domain values) — not entry data — so login is enough.
 func (h *handler) classAttributes(c *gin.Context) {
 	defs, err := h.entries.AttributesOf(c, c.Param("id"))
 	if err != nil {
@@ -531,7 +531,7 @@ func (h *handler) upload(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, media.MaxSize+1<<20)
 	fh, err := c.FormFile("file")
 	if err != nil {
-		fail(c, errs.Invalid("file wajib diisi (maks %dMB)", media.MaxSize>>20))
+		fail(c, errs.Invalid("file is required (max %dMB)", media.MaxSize>>20))
 		return
 	}
 	f, err := fh.Open()
@@ -561,7 +561,7 @@ func (h *handler) mediaMeta(c *gin.Context) {
 	c.JSON(http.StatusOK, mapAll(list, mediaDTO))
 }
 
-// ponytail: file media bisa dibaca semua user login (tidak terikat izin content type). Ikat ke entri kalau file sensitif.
+// ponytail: media files are readable by every logged-in user (not tied to content type permissions). Bind them to entries if files are sensitive.
 func (h *handler) serveMedia(c *gin.Context) {
 	m, rc, err := h.media.Open(c, c.Param("id"))
 	if err != nil {

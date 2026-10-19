@@ -26,7 +26,7 @@ func TestUploadDetectsMimeFromContent(t *testing.T) {
 	body, _ := io.ReadAll(rc)
 	rc.Close()
 	if got.ID != m.ID || !bytes.HasPrefix(body, []byte("\x89PNG")) {
-		t.Error("isi file harus tersimpan utuh")
+		t.Error("file content must be stored intact")
 	}
 	meta, _ := e.media.Meta(e.ctx, []string{m.ID, "nope"})
 	if len(meta) != 1 {
@@ -40,6 +40,6 @@ func TestUploadTooLarge(t *testing.T) {
 		t.Errorf("err = %v", err)
 	}
 	if e.files.Count() != 0 {
-		t.Error("file ditolak tidak boleh tersimpan")
+		t.Error("a rejected file must not be stored")
 	}
 }

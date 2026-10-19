@@ -2,15 +2,15 @@ package role
 
 import "context"
 
-// Repository: port penyimpanan Role. Get -> errs.NotFound; Insert -> errs.Conflict bila ID/nama bentrok.
+// Repository: Role storage port. Get -> errs.NotFound; Insert -> errs.Conflict when ID/name collides.
 type Repository interface {
 	List(ctx context.Context) ([]*Role, error)
 	Get(ctx context.Context, id string) (*Role, error)
 	Insert(ctx context.Context, r *Role) error
 	Update(ctx context.Context, r *Role) error
 	Delete(ctx context.Context, id string) error
-	// CountExisting: berapa ID yang benar-benar ada (validasi role milik user).
+	// CountExisting: how many IDs actually exist (validates a user's roles).
 	CountExisting(ctx context.Context, ids []string) (int, error)
-	// InsertIfMissing: untuk seed role bawaan tanpa menimpa perubahan.
+	// InsertIfMissing: seeds built-in roles without overwriting changes.
 	InsertIfMissing(ctx context.Context, r *Role) error
 }

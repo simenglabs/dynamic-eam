@@ -11,9 +11,9 @@ import (
 	"eam/services/common/errs"
 )
 
-// AutoPattern: kode dibuat dari pola, mis. "AST-{seq:5}", "{classification.classificationCode}-{YYYY}-{seq:4}".
-// Token: {seq} / {seq:N} nomor urut (N digit, nol di depan), {YYYY} {YY} {MM} {DD}, {field}, {relasi.field}.
-// Nomor urut terpisah per hasil pola selain {seq} (tiap kode classification punya urutan sendiri).
+// AutoPattern: code generated from a pattern, e.g. "AST-{seq:5}", "{classification.classificationCode}-{YYYY}-{seq:4}".
+// Tokens: {seq} / {seq:N} sequence number (N digits, zero-padded), {YYYY} {YY} {MM} {DD}, {field}, {relation.field}.
+// Sequence numbers are separate per pattern result excluding {seq} (each classification code has its own sequence).
 const AutoPattern = "pattern"
 
 var patternToken = regexp.MustCompile(`\{([^{}]*)\}`)
@@ -21,10 +21,10 @@ var patternToken = regexp.MustCompile(`\{([^{}]*)\}`)
 func (ct *ContentType) validatePattern(f Field) error {
 	p := f.AutoFill.Pattern
 	if f.Type != TText {
-		return errs.Invalid("field %q: kode otomatis hanya untuk field text", f.Name)
+		return errs.Invalid("field %q: auto code is only for text fields", f.Name)
 	}
 	if strings.TrimSpace(p) == "" {
-		return errs.Invalid("field %q: isi pola kode", f.Name)
+		return errs.Invalid("field %q: code pattern is required", f.Name)
 	}
 	seqs := 0
 	for _, m := range patternToken.FindAllStringSubmatch(p, -1) {
@@ -32,7 +32,7 @@ func (ct *ContentType) validatePattern(f Field) error {
 		switch {
 		case tok == "seq" || strings.HasPrefix(tok, "seq:"):
 			if n, err := strconv.Atoi(strings.TrimPrefix(tok, "seq:")); tok != "seq" && (err != nil || n < 1 || n > 12) {
-				return errs.Invalid("field %q: {seq:N} butuh N 1-12", f.Name)
+				return errs.Invalid("field %q: {seq:N} requires N between 1 and 12", f.Name)
 			}
 			seqs++
 		case tok == "YYYY" || tok == "YY" || tok == "MM" || tok == "DD":
@@ -40,22 +40,22 @@ func (ct *ContentType) validatePattern(f Field) error {
 			name, sub, nested := strings.Cut(tok, ".")
 			i := slices.IndexFunc(ct.Fields, func(x Field) bool { return x.Name == name })
 			if i < 0 || name == f.Name {
-				return errs.Invalid("field %q: token {%s} tidak dikenal", f.Name, tok)
+				return errs.Invalid("field %q: unknown token {%s}", f.Name, tok)
 			}
 			if nested && (ct.Fields[i].Type != TRelation || ct.Fields[i].Multiple || sub == "") {
-				return errs.Invalid("field %q: {%s} harus dari field relasi tunggal", f.Name, tok)
+				return errs.Invalid("field %q: {%s} must come from a single relation field", f.Name, tok)
 			}
 		}
 	}
 	if seqs > 1 {
-		return errs.Invalid("field %q: {seq} hanya boleh sekali", f.Name)
+		return errs.Invalid("field %q: {seq} may only appear once", f.Name)
 	}
 	return nil
 }
 
-// ApplyPatterns mengisi field kode berpola (input tidak dimutasi). Terkunci: kode lama dipertahankan, nilai user diabaikan;
-// tidak terkunci: hanya dibuat bila kosong. next memberi nomor urut berikutnya untuk sebuah kunci counter.
-// ponytail: nomor urut diambil sebelum simpan, jadi simpan yang gagal meninggalkan nomor loncat (seperti sequence DB).
+// ApplyPatterns fills pattern-based code fields (input is not mutated). Locked: the old code is kept, user values are ignored;
+// not locked: generated only when empty. next returns the next sequence number for a counter key.
+// ponytail: the sequence number is taken before saving, so a failed save leaves a gap (like a DB sequence).
 func (ct *ContentType) ApplyPatterns(data, old map[string]any, src AutoFillSources, next func(key string) (int64, error)) (map[string]any, error) {
 	out := maps.Clone(data)
 	if out == nil {

@@ -1,7 +1,7 @@
-// Logika murni Combobox (diuji di combobox.test.ts).
+// Pure Combobox logic (tested in combobox.test.ts).
 export type ComboOption = { value: string; label: string; hint?: string };
 
-// Semua kata kueri harus muncul di label/value/hint (tidak peka huruf besar, urutan bebas).
+// Every query word must appear in label/value/hint (case-insensitive, any order).
 export function filterOptions<T extends ComboOption>(options: T[], query: string): T[] {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (words.length === 0) return options;
@@ -11,7 +11,7 @@ export function filterOptions<T extends ComboOption>(options: T[], query: string
   });
 }
 
-// Indeks aktif berikutnya untuk tombol navigasi; berputar di ujung. -1 = tidak ada opsi.
+// Next active index for a navigation key; wraps at the ends. -1 = no options.
 export function moveIndex(current: number, count: number, key: "ArrowDown" | "ArrowUp" | "Home" | "End"): number {
   if (count === 0) return -1;
   switch (key) {

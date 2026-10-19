@@ -12,18 +12,18 @@ async function call(path: string, method: string, body?: unknown): Promise<Actio
     return null;
   } catch (e) {
     if (e instanceof ApiError && e.status < 500) return { error: e.message };
-    if (e instanceof ApiError && e.status === 502) return { error: e.message }; // tersimpan, index gagal
+    if (e instanceof ApiError && e.status === 502) return { error: e.message }; // saved, indexing failed
     throw e;
   }
 }
 
 const base = (kind: "content-types" | "components") => (kind === "content-types" ? "/builder" : "/components");
 
-// json = schema hasil SchemaForm. uid kosong = buat baru.
+// json = schema from SchemaForm. Empty uid = create new.
 export async function saveSchema(kind: "content-types" | "components", uid: string | undefined, json: string): Promise<ActionState> {
   const err = await call(uid ? `/${kind}/${encodeURIComponent(uid)}` : `/${kind}`, uid ? "PUT" : "POST", JSON.parse(json));
   if (err) return err;
-  revalidatePath("/", "layout"); // sidebar ikut berubah
+  revalidatePath("/", "layout"); // sidebar changes too
   redirect(base(kind));
 }
 
@@ -47,7 +47,7 @@ export async function deleteEntry(uid: string, id: string): Promise<ActionState>
   redirect(`/c/${uid}`);
 }
 
-// Profil user: upsert (dibuat bila belum ada), lalu muat ulang halaman profil.
+// User profile: upsert (created if missing), then reload the profile page.
 export async function saveProfile(userId: string, json: string): Promise<ActionState> {
   const err = await call(`/profiles/${encodeURIComponent(userId)}`, "PUT", JSON.parse(json));
   if (err) return err;

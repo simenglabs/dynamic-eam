@@ -30,11 +30,11 @@ func TestUpsertCreatesWithGivenIDThenUpdates(t *testing.T) {
 		t.Fatalf("upsert update: %+v %v", got, err)
 	}
 	if _, err := e.entries.Upsert(e.ctx, content.ProfileUID, "USER2", map[string]any{"location": "palsu"}, u1); errs.KindOf(err) != errs.KindInvalid {
-		t.Errorf("relasi palsu tetap divalidasi: %v", err)
+		t.Errorf("fake relation must still be validated: %v", err)
 	}
 	hist, _ := e.entries.History(e.ctx, content.ProfileUID, "USER1", u1)
 	if len(hist) != 2 || hist[0].Action != "create" || hist[1].Action != "update" {
-		t.Errorf("riwayat profil: %+v", hist)
+		t.Errorf("profile history: %+v", hist)
 	}
 }
 
@@ -43,7 +43,7 @@ func TestUpsertRejectsBadID(t *testing.T) {
 	withProfile(t, e)
 	for _, id := range []string{"", "../x", "a b"} {
 		if _, err := e.entries.Upsert(e.ctx, content.ProfileUID, id, map[string]any{}, u1); errs.KindOf(err) != errs.KindInvalid {
-			t.Errorf("id %q harus ditolak: %v", id, err)
+			t.Errorf("id %q must be rejected: %v", id, err)
 		}
 	}
 }
@@ -55,6 +55,6 @@ func TestUpsertRevivesSoftDeleted(t *testing.T) {
 	e.entries.Delete(e.ctx, content.ProfileUID, "USER1", u1)
 	got, err := e.entries.Upsert(e.ctx, content.ProfileUID, "USER1", map[string]any{"note": "b"}, u1)
 	if err != nil || got.Deleted || got.Data["note"] != "b" {
-		t.Errorf("profil terhapus dibuat ulang: %+v %v", got, err)
+		t.Errorf("deleted profile recreated: %+v %v", got, err)
 	}
 }

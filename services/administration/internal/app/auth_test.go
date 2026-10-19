@@ -15,13 +15,13 @@ func TestLoginSuccessIssuesToken(t *testing.T) {
 		t.Fatal(err)
 	}
 	if res.Token == "" || res.User.Username != "admin" || res.ExpiresIn <= 0 {
-		t.Errorf("hasil login salah: %+v", res)
+		t.Errorf("wrong login result: %+v", res)
 	}
 }
 
 func TestLoginUnknownUserIsBadCredentials(t *testing.T) {
 	e := newEnv()
-	_, err := e.auth.Login(context.Background(), "hantu", "x")
+	_, err := e.auth.Login(context.Background(), "ghost", "x")
 	if err != user.ErrBadCredentials {
 		t.Errorf("err = %v", err)
 	}
@@ -31,23 +31,23 @@ func TestLoginCountsDownThenLocks(t *testing.T) {
 	e := newEnv()
 	ctx := context.Background()
 	for i := 1; i < user.MaxFailedLogins; i++ {
-		res, err := e.auth.Login(ctx, "admin", "salah")
+		res, err := e.auth.Login(ctx, "admin", "wrong")
 		if errs.KindOf(err) != errs.KindUnauthorized || res.AttemptsRemaining != user.MaxFailedLogins-i {
-			t.Fatalf("percobaan %d: remaining=%d err=%v", i, res.AttemptsRemaining, err)
+			t.Fatalf("attempt %d: remaining=%d err=%v", i, res.AttemptsRemaining, err)
 		}
 	}
-	if _, err := e.auth.Login(ctx, "admin", "salah"); err == nil || err == user.ErrBadCredentials {
-		t.Fatalf("percobaan terakhir harus mengunci, err=%v", err)
+	if _, err := e.auth.Login(ctx, "admin", "wrong"); err == nil || err == user.ErrBadCredentials {
+		t.Fatalf("last attempt must lock, err=%v", err)
 	}
 	if _, err := e.auth.Login(ctx, "admin", "rootpassword"); err != user.ErrLocked {
-		t.Errorf("setelah terkunci password benar pun ditolak, err=%v", err)
+		t.Errorf("once locked even the correct password is rejected, err=%v", err)
 	}
 }
 
 func TestLoginSuccessResetsFailures(t *testing.T) {
 	e := newEnv()
 	ctx := context.Background()
-	e.auth.Login(ctx, "admin", "salah")
+	e.auth.Login(ctx, "admin", "wrong")
 	e.auth.Login(ctx, "admin", "rootpassword")
 	u, _ := e.users.FindByLogin(ctx, "admin")
 	if u.FailedAttempts != 0 {

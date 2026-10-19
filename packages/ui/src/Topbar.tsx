@@ -9,7 +9,7 @@ type User = { name: string; username: string; roles: string[] } | null;
 const initials = (name: string) =>
   name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 
-// Top bar: cari menu (⌘K / Ctrl+K) dan menu profil.
+// Top bar: menu search (⌘K / Ctrl+K) and profile menu.
 export function Topbar({ menu, user }: { menu: ZoneDef[]; user: User }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -50,8 +50,8 @@ export function Topbar({ menu, user }: { menu: ZoneDef[]; user: User }) {
             if (e.key === "Enter" && hits[0]) location.assign(hits[0].href);
             if (e.key === "Escape") e.currentTarget.blur();
           }}
-          placeholder="Cari menu…"
-          aria-label="Cari menu"
+          placeholder="Search menu…"
+          aria-label="Search menu"
           className="h-10 w-full rounded-xl border border-slate-200 bg-white pr-14 pl-10 text-sm outline-none placeholder:text-slate-400 focus:border-primary-500 focus:ring-3 focus:ring-primary-100"
         />
         <kbd className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 rounded-md border border-slate-200 bg-slate-50 px-1.5 text-[11px] text-slate-500">⌘ K</kbd>
@@ -70,7 +70,7 @@ export function Topbar({ menu, user }: { menu: ZoneDef[]; user: User }) {
       </div>
 
       <details className="relative ml-auto">
-        <summary aria-label="Menu akun" className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-white">
+        <summary aria-label="Account menu" className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-2 py-1.5 hover:bg-white">
           <span className="bg-primary-100 text-primary-800 flex size-9 items-center justify-center rounded-full text-sm font-bold">
             {initials(user?.name || user?.username || "?")}
           </span>
@@ -85,7 +85,7 @@ export function Topbar({ menu, user }: { menu: ZoneDef[]; user: User }) {
           <p className="mb-2 px-2 text-xs text-slate-500">@{user?.username}</p>
           <form action="/logout" method="post">
             <button className="text-destructive flex w-full items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-red-50">
-              <LogOut className="size-4" /> Keluar
+              <LogOut className="size-4" /> Sign out
             </button>
           </form>
         </div>

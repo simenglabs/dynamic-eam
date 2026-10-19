@@ -11,7 +11,7 @@ func TestEnsureCreatesMissingInDependencyOrder(t *testing.T) {
 	e := newEnv()
 	addr := &content.Component{UID: "address", Label: "Alamat", Fields: []content.Field{{Name: "street", Label: "Jalan", Type: content.TText}}}
 	loc := locationCT()
-	veh := vehicleCT() // relation ke location: harus dibuat setelah location walau urutan di seed terbalik
+	veh := vehicleCT() // relation to location: must be created after location even though the seed order is reversed
 	veh.Fields = append(veh.Fields, content.Field{Name: "addr", Label: "Alamat", Type: content.TComponent, Component: "address"})
 	created, err := e.schemas.Ensure(e.ctx, []*content.Component{addr}, []*content.ContentType{veh, loc})
 	if err != nil {
@@ -37,7 +37,7 @@ func TestEnsureSkipsExisting(t *testing.T) {
 		t.Fatalf("created=%v err=%v", created, err)
 	}
 	if got, _ := e.schemas.GetContentType(e.ctx, "location"); got.Label != "Lokasi (diubah user)" {
-		t.Error("seed tidak boleh menimpa perubahan user")
+		t.Error("seed must not overwrite user changes")
 	}
 }
 
@@ -46,31 +46,31 @@ func TestEnsureReportsInvalidSeed(t *testing.T) {
 	bad := locationCT()
 	bad.DisplayField = "{tidakAda}"
 	if _, err := e.schemas.Ensure(e.ctx, nil, []*content.ContentType{bad}); errs.KindOf(err) != errs.KindInvalid {
-		t.Errorf("seed invalid harus error: %v", err)
+		t.Errorf("invalid seed must error: %v", err)
 	}
 }
 
 func TestEnsureUnresolvableRelation(t *testing.T) {
 	e := newEnv()
 	if _, err := e.schemas.Ensure(e.ctx, nil, []*content.ContentType{vehicleCT()}); errs.KindOf(err) != errs.KindInvalid {
-		t.Errorf("relation ke content type yang tidak ada di seed/DB: %v", err)
+		t.Errorf("relation to a content type missing from seed/DB: %v", err)
 	}
 }
 
-// Constraint DB turunan schema (unique) disamakan saat start, bukan hanya saat schema disimpan.
+// DB constraints derived from the schema (unique) are synced at startup, not only when the schema is saved.
 func TestSyncConstraintsRestoresUnique(t *testing.T) {
 	e := newEnv()
-	e.seed()                                               // location.name unique, berisi "Gudang"
-	e.schemas.d.Entries.SyncUnique(e.ctx, "location", nil) // simulasi constraint lama/hilang
+	e.seed()                                               // location.name unique, contains "Gudang"
+	e.schemas.d.Entries.SyncUnique(e.ctx, "location", nil) // simulate an old/missing constraint
 	if err := e.schemas.SyncConstraints(e.ctx); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.entries.Create(e.ctx, "location", map[string]any{"name": "Gudang"}, u1); errs.KindOf(err) != errs.KindConflict {
-		t.Errorf("unique harus aktif lagi setelah sync: %v", err)
+		t.Errorf("unique must be active again after sync: %v", err)
 	}
 }
 
-// Component boleh merujuk content type di seed yang sama (mis. atribut classification -> master attribute).
+// A component may reference a content type in the same seed (e.g. classification attributes -> attribute master).
 func TestEnsureInterleavesComponentAndContentTypeDeps(t *testing.T) {
 	e := newEnv()
 	attr := &content.ContentType{UID: "attr", Label: "Attribute", Parent: "master", DisplayField: "code",

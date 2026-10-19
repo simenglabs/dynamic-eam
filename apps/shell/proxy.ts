@@ -1,18 +1,18 @@
 import { jwtVerify } from "jose";
 import { NextResponse, type NextRequest } from "next/server";
-const TOKEN_COOKIE = "eam_token"; // = TOKEN_COOKIE di @eam/ui & common.CookieName di Go
+const TOKEN_COOKIE = "eam_token"; // = TOKEN_COOKIE in @eam/ui & common.CookieName in Go
 
 function secret() {
   const s = process.env.JWT_SECRET;
-  if (!s && process.env.NODE_ENV === "production") throw new Error("JWT_SECRET wajib di-set di production");
-  return new TextEncoder().encode(s ?? "dev-secret-change-me"); // harus sama dengan services/common
+  if (!s && process.env.NODE_ENV === "production") throw new Error("JWT_SECRET must be set in production");
+  return new TextEncoder().encode(s ?? "dev-secret-change-me"); // must match services/common
 }
 
-// Gerbang login untuk shell + semua zone (zone diakses lewat rewrite shell).
-// Service Go tetap memverifikasi token sendiri; ini hanya supaya user tanpa sesi diarahkan ke /login.
+// Login gate for the shell + all zones (zones are reached through shell rewrites).
+// Go services still verify the token themselves; this only redirects users without a session to /login.
 export async function proxy(req: NextRequest) {
   const cookie = req.cookies.get(TOKEN_COOKIE)?.value;
-  const token = cookie ?? req.headers.get("authorization")?.replace(/^Bearer /, ""); // Bearer untuk klien API
+  const token = cookie ?? req.headers.get("authorization")?.replace(/^Bearer /, ""); // Bearer for API clients
   const valid = !!token && (await jwtVerify(token, secret(), { algorithms: ["HS256"] }).then(() => true, () => false));
   if (valid) return NextResponse.next();
 

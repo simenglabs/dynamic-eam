@@ -1,4 +1,4 @@
-// Logo EAM: kotak hijau tua dengan simbol "node aset" (titik pusat terhubung ke 4 titik). Juga dipakai sebagai favicon (icon.svg).
+// EAM logo: dark green square with an "asset node" symbol (center dot linked to 4 dots). Also used as the favicon (icon.svg).
 export function LogoMark({ className = "size-9" }: { className?: string }) {
   return (
     <svg viewBox="0 0 40 40" className={className} aria-hidden>

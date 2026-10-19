@@ -19,11 +19,11 @@ func TestDomainFieldSchema(t *testing.T) {
 	}
 	bad := withDomainField(Field{Name: "priority", Label: "Priority", Type: TDomain})
 	if errs.KindOf(bad.Validate(catalog())) != errs.KindInvalid {
-		t.Error("field domain tanpa kode domain harus invalid")
+		t.Error("domain field without a domain code must be invalid")
 	}
 	def := withDomainField(Field{Name: "priority", Label: "Priority", Type: TDomain, Domain: "PRIORITY", Default: "HIGH"})
 	if errs.KindOf(def.Validate(catalog())) != errs.KindInvalid {
-		t.Error("default statis untuk field domain tidak didukung (pakai isDefault di domain)")
+		t.Error("static default is not supported for domain fields (use isDefault in the domain)")
 	}
 }
 
@@ -37,7 +37,7 @@ func TestDomainValueCollectedAsRef(t *testing.T) {
 		t.Errorf("out=%v refs=%+v", out, refs)
 	}
 	if _, _, err := ValidateEntry(ct.Fields, map[string]any{"plate": "L 1", "priority": 3}, nil, true); errs.KindOf(err) != errs.KindInvalid {
-		t.Error("nilai domain harus teks (valueId)")
+		t.Error("domain value must be text (valueId)")
 	}
 }
 
@@ -56,7 +56,7 @@ func TestUniqueByInRepeatableComponent(t *testing.T) {
 	}
 	dup := map[string]any{"domainCode": "PRIORITY", "values": []any{map[string]any{"valueId": "LOW"}, map[string]any{"valueId": "LOW"}}}
 	if _, _, err := ValidateEntry(domain.Fields, dup, cat.Components, true); errs.KindOf(err) != errs.KindInvalid {
-		t.Error("valueId duplikat dalam satu domain harus ditolak")
+		t.Error("duplicate valueId within one domain must be rejected")
 	}
 	okData := map[string]any{"domainCode": "PRIORITY", "values": []any{map[string]any{"valueId": "LOW"}, map[string]any{"valueId": "HIGH"}}}
 	if _, _, err := ValidateEntry(domain.Fields, okData, cat.Components, true); err != nil {
@@ -64,13 +64,13 @@ func TestUniqueByInRepeatableComponent(t *testing.T) {
 	}
 
 	for name, f := range map[string]Field{
-		"uniqueBy di non-repeatable": {Name: "v", Label: "V", Type: TComponent, Component: "domain-value", UniqueBy: "valueId"},
-		"uniqueBy field tak ada":     {Name: "v", Label: "V", Type: TComponent, Component: "domain-value", Repeatable: true, UniqueBy: "nope"},
+		"uniqueBy on non-repeatable": {Name: "v", Label: "V", Type: TComponent, Component: "domain-value", UniqueBy: "valueId"},
+		"uniqueBy missing field":     {Name: "v", Label: "V", Type: TComponent, Component: "domain-value", Repeatable: true, UniqueBy: "nope"},
 	} {
 		ct := domain
 		ct.Fields = []Field{domain.Fields[0], f}
 		if errs.KindOf(ct.Validate(cat)) != errs.KindInvalid {
-			t.Errorf("%s: harus invalid", name)
+			t.Errorf("%s: must be invalid", name)
 		}
 	}
 }

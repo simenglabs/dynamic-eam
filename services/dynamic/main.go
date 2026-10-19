@@ -1,4 +1,4 @@
-// Service dynamic: menu dinamis ala Strapi (schema, layout, workflow, entri, media). main = composition root.
+// Service dynamic: Strapi-style dynamic menus (schema, layout, workflow, entries, media). main = composition root.
 package main
 
 import (
@@ -42,7 +42,7 @@ func main() {
 		NewID: rand.Text,
 	}
 
-	// Menu & data bawaan (Master, Assets) dibuat bila belum ada; yang sudah ada tidak ditimpa.
+	// Built-in menus & records (Master, Assets) are created if missing; existing ones are not overwritten.
 	system := content.Actor{ID: "system", Name: "System", Super: true}
 	for _, name := range seed.Order {
 		comps, cts, rows, err := dynhttp.DecodeSeed(seed.Files[name])
@@ -51,22 +51,22 @@ func main() {
 		}
 		created, err := app.NewSchemas(d).Ensure(context.Background(), comps, cts)
 		if err != nil {
-			log.Printf("seed %s: %v", name, err) // mis. index ES gagal; schema tetap tersimpan
+			log.Printf("seed %s: %v", name, err) // e.g. ES index failed; the schema is still saved
 		}
 		for _, r := range rows {
 			done, err := app.NewEntries(d).EnsureEntries(context.Background(), r.UID, r.Key, r.Rows, system)
 			if err != nil {
-				log.Printf("seed %s data %s: %v", name, r.UID, err)
+				log.Printf("seed %s records %s: %v", name, r.UID, err)
 			}
 			created = append(created, done...)
 		}
 		if len(created) > 0 {
-			log.Printf("seed %s: dibuat %v", name, created)
+			log.Printf("seed %s: created %v", name, created)
 		}
 	}
 
 	if err := app.NewSchemas(d).SyncConstraints(context.Background()); err != nil {
-		log.Print("sync constraint: ", err) // mis. data lama duplikat; service tetap jalan
+		log.Print("sync constraint: ", err) // e.g. duplicate legacy records; the service keeps running
 	}
 
 	r := gin.Default()

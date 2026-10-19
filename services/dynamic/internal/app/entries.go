@@ -33,7 +33,7 @@ func (s *Entries) List(ctx context.Context, uid string, q Query, by content.Acto
 	return page, nil
 }
 
-// scope: tambahkan filter site ke query bila content type dibatasi untuk actor. false = actor tanpa site akses (hasil kosong).
+// scope: add a site filter to the query when the content type is restricted for the actor. false = actor without site access (empty result).
 func scope(ct *content.ContentType, by content.Actor, q *Query) bool {
 	if !ct.Scoped(by) {
 		return true
@@ -45,7 +45,7 @@ func scope(ct *content.ContentType, by content.Actor, q *Query) bool {
 	return true
 }
 
-// Get: entri yang sudah dihapus (soft delete) atau di luar site akses dianggap tidak ada.
+// Get: entries that were deleted (soft delete) or are outside site access are treated as nonexistent.
 func (s *Entries) Get(ctx context.Context, uid, id string, by content.Actor) (*content.Entry, error) {
 	ct, err := s.d.Schemas.GetContentType(ctx, uid)
 	if err != nil {
@@ -54,11 +54,11 @@ func (s *Entries) Get(ctx context.Context, uid, id string, by content.Actor) (*c
 	return s.visible(ctx, ct, id, by)
 }
 
-// visible: entri aktif & dalam site akses actor (di luar akses = NotFound, supaya keberadaannya tidak bocor).
+// visible: entry is active & within the actor's site access (outside access = NotFound, so its existence does not leak).
 func (s *Entries) visible(ctx context.Context, ct *content.ContentType, id string, by content.Actor) (*content.Entry, error) {
 	e, err := s.live(ctx, ct.UID, id)
 	if err == nil && !ct.InScope(e, by) {
-		return nil, errs.NotFound("data")
+		return nil, errs.NotFound("record")
 	}
 	return e, err
 }
@@ -66,20 +66,20 @@ func (s *Entries) visible(ctx context.Context, ct *content.ContentType, id strin
 func (s *Entries) live(ctx context.Context, uid, id string) (*content.Entry, error) {
 	e, err := s.d.Entries.Get(ctx, uid, id)
 	if err == nil && e.Deleted {
-		return nil, errs.NotFound("data")
+		return nil, errs.NotFound("record")
 	}
 	return e, err
 }
 
-// History: audit trail entri (create/update/delete/transisi), urut versi. Tetap bisa dibaca setelah dihapus.
+// History: entry audit trail (create/update/delete/transition), ordered by version. Still readable after deletion.
 func (s *Entries) History(ctx context.Context, uid, id string, by content.Actor) ([]*content.Revision, error) {
 	ct, err := s.d.Schemas.GetContentType(ctx, uid)
 	if err != nil {
 		return nil, err
 	}
-	// Entri terhapus tetap boleh dilihat riwayatnya, tapi tetap dibatasi site.
+	// The history of a deleted entry is still viewable, but still restricted by site.
 	if e, err := s.d.Entries.Get(ctx, uid, id); err == nil && !ct.InScope(e, by) {
-		return nil, errs.NotFound("data")
+		return nil, errs.NotFound("record")
 	}
 	return s.d.Entries.Revisions(ctx, uid, id)
 }
@@ -93,10 +93,10 @@ func (s *Entries) Create(ctx context.Context, uid string, data map[string]any, b
 	return s.save(ctx, ct, e, data, by, true)
 }
 
-// Upsert: simpan entri dengan ID dari luar (mis. profil user = ID user); dibuat bila belum ada / pernah dihapus.
+// Upsert: save an entry with an external ID (e.g. user profile = user ID); created if missing / previously deleted.
 func (s *Entries) Upsert(ctx context.Context, uid, id string, data map[string]any, by content.Actor) (*content.Entry, error) {
 	if !content.ExternalIDRe.MatchString(id) {
-		return nil, errs.Invalid("id tidak valid")
+		return nil, errs.Invalid("id is invalid")
 	}
 	ct, err := s.d.Schemas.GetContentType(ctx, uid)
 	if err != nil {
@@ -111,12 +111,12 @@ func (s *Entries) Upsert(ctx context.Context, uid, id string, data map[string]an
 	}
 	e := &content.Entry{ID: id, CreatedAt: s.d.Now(), CreatedBy: by.ID, Status: ct.InitialStatus()}
 	if old != nil {
-		e.Version = old.Version // dibuat ulang setelah dihapus: nomor versi berlanjut
+		e.Version = old.Version // recreated after deletion: version number continues
 	}
 	return s.save(ctx, ct, e, data, by, true)
 }
 
-// Update hanya mengubah data; status & riwayat hanya berubah lewat Transition.
+// Update only changes data; status & history only change via Transition.
 func (s *Entries) Update(ctx context.Context, uid, id string, data map[string]any, by content.Actor) (*content.Entry, error) {
 	ct, e, err := s.editable(ctx, uid, id, by)
 	if err != nil {
@@ -125,7 +125,7 @@ func (s *Entries) Update(ctx context.Context, uid, id string, data map[string]an
 	return s.save(ctx, ct, e, data, by, false)
 }
 
-// editable memuat entri (dalam site akses) dan menolak bila status saat ini terkunci workflow.
+// editable loads the entry (within site access) and rejects it if the current status is locked by the workflow.
 func (s *Entries) editable(ctx context.Context, uid, id string, by content.Actor) (*content.ContentType, *content.Entry, error) {
 	ct, err := s.d.Schemas.GetContentType(ctx, uid)
 	if err != nil {
@@ -136,13 +136,13 @@ func (s *Entries) editable(ctx context.Context, uid, id string, by content.Actor
 		return nil, nil, err
 	}
 	if !ct.Editable(e.Status) {
-		return nil, nil, errs.Forbidden("data berstatus %s tidak bisa diubah atau dihapus", e.Status)
+		return nil, nil, errs.Forbidden("records with status %s cannot be edited or deleted", e.Status)
 	}
 	return ct, e, nil
 }
 
-// Preview: nilai field isi otomatis untuk data form saat ini (sebelum Save), dihitung sama seperti save.
-// Nomor urut hanya diintip, tidak dipakai. id kosong = data baru.
+// Preview: auto fill field values for the current form data (before Save), computed the same way as save.
+// Sequence numbers are only peeked, not consumed. Empty id = new record.
 func (s *Entries) Preview(ctx context.Context, uid, id string, data map[string]any, by content.Actor) (map[string]any, error) {
 	ct, err := s.d.Schemas.GetContentType(ctx, uid)
 	if err != nil {
@@ -207,7 +207,7 @@ func (s *Entries) save(ctx context.Context, ct *content.ContentType, e *content.
 	}
 	changes := content.Diff(e.Data, clean)
 	if !creating && len(changes) == 0 {
-		return e, nil // tidak ada perubahan: versi & riwayat tidak bertambah
+		return e, nil // no changes: version & history are not incremented
 	}
 	action := content.ActionUpdate
 	if creating {
@@ -223,7 +223,7 @@ func (s *Entries) save(ctx context.Context, ct *content.ContentType, e *content.
 	return e, nil
 }
 
-// commit: naikkan versi, simpan entri + revisi, lalu sinkron ke index (unindex bila terhapus).
+// commit: bump the version, save entry + revision, then sync to the index (unindex if deleted).
 func (s *Entries) commit(ctx context.Context, ct *content.ContentType, e *content.Entry, rev *content.Revision, deleted bool) error {
 	e.Version++
 	rev.Version = e.Version
@@ -231,7 +231,7 @@ func (s *Entries) commit(ctx context.Context, ct *content.ContentType, e *conten
 		e.Version--
 		return err
 	}
-	// ponytail: entri & revisi tidak satu transaksi Mongo; pakai session transaction kalau audit harus 100% konsisten.
+	// ponytail: entry & revision are not in one Mongo transaction; use a session transaction if the audit must be 100% consistent.
 	if err := s.d.Entries.AddRevision(ctx, ct.UID, rev); err != nil {
 		return err
 	}
@@ -247,7 +247,7 @@ func (s *Entries) commit(ctx context.Context, ct *content.ContentType, e *conten
 	return nil
 }
 
-// checkRefs: semua id relation & media yang dirujuk harus ada.
+// checkRefs: every referenced relation & media id must exist.
 func (s *Entries) checkRefs(ctx context.Context, r content.Refs) error {
 	check := func(ids []string, what string, count func([]string) (int, error)) error {
 		if len(ids) == 0 {
@@ -259,12 +259,12 @@ func (s *Entries) checkRefs(ctx context.Context, r content.Refs) error {
 			return err
 		}
 		if n != len(ids) {
-			return errs.Invalid("%s yang dipilih tidak ditemukan", what)
+			return errs.Invalid("selected %s not found", what)
 		}
 		return nil
 	}
 	for target, ids := range r.Relations {
-		err := check(ids, "relasi "+target, func(ids []string) (int, error) { return s.d.Entries.CountExisting(ctx, target, ids) })
+		err := check(ids, "relation "+target, func(ids []string) (int, error) { return s.d.Entries.CountExisting(ctx, target, ids) })
 		if err != nil {
 			return err
 		}
@@ -275,21 +275,21 @@ func (s *Entries) checkRefs(ctx context.Context, r content.Refs) error {
 	for code, ids := range r.Domains {
 		vals, err := s.DomainValues(ctx, code)
 		if errs.KindOf(err) == errs.KindNotFound {
-			return errs.Invalid("domain %s belum dibuat di Master › Domain", code)
+			return errs.Invalid("domain %s has not been created in Master › Domain", code)
 		}
 		if err != nil {
 			return err
 		}
 		for _, id := range ids {
 			if !slices.ContainsFunc(vals, func(v content.DomainValue) bool { return v.ID == id }) {
-				return errs.Invalid("nilai %q tidak ada atau tidak aktif di domain %s", id, code)
+				return errs.Invalid("value %q does not exist or is inactive in domain %s", id, code)
 			}
 		}
 	}
 	return nil
 }
 
-// related: pemuat data entri target untuk isi otomatis dari relasi (entri terhapus = tidak ada).
+// related: loads target entry data for auto fill from a relation (deleted entry = nonexistent).
 func (s *Entries) related(ctx context.Context, ct *content.ContentType) func(field, id string) map[string]any {
 	return func(field, id string) map[string]any {
 		i := slices.IndexFunc(ct.Fields, func(f content.Field) bool { return f.Name == field })
@@ -304,7 +304,7 @@ func (s *Entries) related(ctx context.Context, ct *content.ContentType) func(fie
 	}
 }
 
-// fillActorDefaults: saat create, relasi kosong ke Sites diisi default site user, ke Organizations diisi organisasinya.
+// fillActorDefaults: on create, an empty relation to Sites gets the user's default site, to Organizations gets their organization.
 func fillActorDefaults(ct *content.ContentType, data map[string]any, by content.Actor) map[string]any {
 	out := maps.Clone(data)
 	if out == nil {
@@ -324,7 +324,7 @@ func fillActorDefaults(ct *content.ContentType, data map[string]any, by content.
 	return out
 }
 
-// fillDomainDefaults: field domain (level atas) yang tidak diisi saat create memakai value isDefault domain.
+// fillDomainDefaults: top-level domain fields left empty on create use the domain's isDefault value.
 func (s *Entries) fillDomainDefaults(ctx context.Context, ct *content.ContentType, data map[string]any) (map[string]any, error) {
 	out, copied := data, false
 	for _, f := range ct.Fields {
@@ -333,13 +333,13 @@ func (s *Entries) fillDomainDefaults(ctx context.Context, ct *content.ContentTyp
 		}
 		vals, err := s.DomainValues(ctx, f.Domain)
 		if errs.KindOf(err) == errs.KindNotFound {
-			continue // dilaporkan saat validasi bila field diisi / required
+			continue // reported during validation if the field is filled / required
 		}
 		if err != nil {
 			return nil, err
 		}
 		if d := content.DefaultDomainValue(vals); d != "" {
-			if !copied { // salin sekali supaya input pemanggil tidak berubah
+			if !copied { // copy once so the caller's input is not modified
 				out, copied = maps.Clone(data), true
 				if out == nil {
 					out = map[string]any{}
@@ -351,7 +351,7 @@ func (s *Entries) fillDomainDefaults(ctx context.Context, ct *content.ContentTyp
 	return out, nil
 }
 
-// DomainValues: value aktif domain (untuk dropdown & validasi).
+// DomainValues: active domain values (for dropdowns & validation).
 func (s *Entries) DomainValues(ctx context.Context, code string) ([]content.DomainValue, error) {
 	e, err := s.d.Entries.FindOne(ctx, content.DomainUID, content.DomainCodeField, code)
 	if err != nil {
@@ -365,7 +365,7 @@ func (s *Entries) DomainValues(ctx context.Context, code string) ([]content.Doma
 
 type DomainCode struct{ Code, Description string }
 
-// DomainCodes: daftar domain (untuk memilih domain di builder).
+// DomainCodes: list of domains (for choosing a domain in the builder).
 func (s *Entries) DomainCodes(ctx context.Context) ([]DomainCode, error) {
 	all, err := s.d.Entries.All(ctx, content.DomainUID)
 	if err != nil {
@@ -381,7 +381,7 @@ func (s *Entries) DomainCodes(ctx context.Context) ([]DomainCode, error) {
 	return out, nil
 }
 
-// EnsureEntries: buat data bawaan yang belum ada (dicocokkan lewat keyField); yang sudah ada tidak ditimpa.
+// EnsureEntries: create missing built-in records (matched via keyField); existing ones are not overwritten.
 func (s *Entries) EnsureEntries(ctx context.Context, uid, keyField string, rows []map[string]any, by content.Actor) (created []string, err error) {
 	var unavailable error
 	for _, row := range rows {
@@ -402,7 +402,7 @@ func (s *Entries) EnsureEntries(ctx context.Context, uid, keyField string, rows 
 	return created, unavailable
 }
 
-// Delete: soft delete (isDeleted), data tetap tersimpan & tercatat di riwayat.
+// Delete: soft delete (isDeleted); the record stays stored & recorded in history.
 func (s *Entries) Delete(ctx context.Context, uid, id string, by content.Actor) error {
 	ct, e, err := s.editable(ctx, uid, id, by)
 	if err != nil {
@@ -415,8 +415,8 @@ func (s *Entries) Delete(ctx context.Context, uid, id string, by content.Actor) 
 
 type Option struct{ ID, Label string }
 
-// Options: pilihan untuk field relation (label = display field). Maks 100.
-// where: filter field = nilai (filter relasi di form).
+// Options: choices for a relation field (label = display field). Max 100.
+// where: field = value filter (relation filter in the form).
 func (s *Entries) Options(ctx context.Context, uid, q string, where map[string]string, by content.Actor) ([]Option, error) {
 	ct, err := s.d.Schemas.GetContentType(ctx, uid)
 	if err != nil {
@@ -440,7 +440,7 @@ func (s *Entries) Options(ctx context.Context, uid, q string, where map[string]s
 	return out, nil
 }
 
-// All: schema + semua entri (untuk export CSV).
+// All: schema + all entries (for CSV export).
 func (s *Entries) All(ctx context.Context, uid string, by content.Actor) (*content.ContentType, []*content.Entry, error) {
 	ct, err := s.d.Schemas.GetContentType(ctx, uid)
 	if err != nil {
@@ -450,15 +450,15 @@ func (s *Entries) All(ctx context.Context, uid string, by content.Actor) (*conte
 	return ct, slices.DeleteFunc(all, func(e *content.Entry) bool { return !ct.InScope(e, by) }), err
 }
 
-// Transition menjalankan aksi workflow (mis. submit/approve) dan mencatat riwayat. Izin dicek di layer http.
-// data = isian form transisi (Transition.Fields), divalidasi seperti field entri dan dicatat di riwayat.
+// Transition runs a workflow action (e.g. submit/approve) and records history. Permissions are checked in the http layer.
+// data = transition form input (Transition.Fields), validated like entry fields and recorded in history.
 func (s *Entries) Transition(ctx context.Context, uid, id, key string, by content.Actor, note string, data map[string]any) (*content.Entry, error) {
 	ct, err := s.d.Schemas.GetContentType(ctx, uid)
 	if err != nil {
 		return nil, err
 	}
 	if ct.Workflow == nil {
-		return nil, errs.NotFound("transisi")
+		return nil, errs.NotFound("transition")
 	}
 	e, err := s.visible(ctx, ct, id, by)
 	if err != nil {
@@ -497,11 +497,11 @@ func (s *Entries) Transition(ctx context.Context, uid, id, key string, by conten
 	return e, nil
 }
 
-// SiteParentField: field induk di master Sites (hierarki, mis. UID -> UP3 -> ULP).
+// SiteParentField: parent field in the Sites master (hierarchy, e.g. UID -> UP3 -> ULP).
 const SiteParentField = "parent"
 
-// ActorFor membentuk actor dari profil user: site akses (sites + defaultSite, diturunkan ke semua site anak),
-// default site, organisasi, dan data profil. Belum punya profil = tanpa site.
+// ActorFor builds the actor from the user profile: site access (sites + defaultSite, inherited by all child sites),
+// default site, organization, and profile data. No profile yet = no sites.
 func (s *Entries) ActorFor(ctx context.Context, userID, name string, super bool) (content.Actor, error) {
 	a := content.Actor{ID: userID, Name: name, Super: super}
 	e, err := s.d.Entries.Get(ctx, content.ProfileUID, userID)
@@ -532,8 +532,8 @@ func (s *Entries) ActorFor(ctx context.Context, userID, name string, super bool)
 	return a, err
 }
 
-// withChildSites: site + semua turunannya lewat field parent master Sites.
-// ponytail: memuat semua site tiap request (cukup untuk ratusan site); cache kalau jumlah site besar.
+// withChildSites: site + all its descendants via the parent field of the Sites master.
+// ponytail: loads every site on each request (fine for hundreds of sites); cache it if the site count grows large.
 func (s *Entries) withChildSites(ctx context.Context, sites []string) ([]string, error) {
 	if len(sites) == 0 {
 		return nil, nil
@@ -556,7 +556,7 @@ func (s *Entries) withChildSites(ctx context.Context, sites []string) ([]string,
 	for len(queue) > 0 {
 		id := queue[0]
 		queue = queue[1:]
-		if slices.Contains(out, id) { // juga mencegah siklus parent
+		if slices.Contains(out, id) { // also prevents parent cycles
 			continue
 		}
 		out = append(out, id)

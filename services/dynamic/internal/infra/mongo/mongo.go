@@ -1,5 +1,5 @@
-// Package mongo: adapter Mongo untuk schema, entri (collection ct_<uid>) dan metadata media.
-// Format dokumen kompatibel dengan data sebelum refactor.
+// Package mongo: Mongo adapter for schemas, entries (collection ct_<uid>) and media metadata.
+// The document format is compatible with pre-refactor data.
 package mongo
 
 import (
@@ -261,7 +261,7 @@ func (s *Store) DeleteComponent(ctx context.Context, uid string) error {
 	return err
 }
 
-// ---------- entries: dokumen = field data di level atas + metadata ----------
+// ---------- entries: document = data fields at the top level + metadata ----------
 
 const (
 	kID, kCreatedAt, kUpdatedAt, kCreatedBy, kUpdatedBy = "_id", "createdAt", "updatedAt", "createdBy", "updatedBy"
@@ -269,7 +269,7 @@ const (
 	kVersion, kDeleted, kDeletedAt, kDeletedBy          = "version", "isDeleted", "deletedAt", "deletedBy"
 )
 
-// notDeleted: filter entri aktif (dokumen lama tanpa field isDeleted dianggap aktif).
+// notDeleted: filter for active entries (legacy documents without an isDeleted field are treated as active).
 var notDeleted = bson.M{kDeleted: bson.M{"$ne": true}}
 
 func isMeta(k string) bool {
@@ -350,7 +350,7 @@ func normalizeMap(m map[string]any) map[string]any {
 	return out
 }
 
-// normalize: tipe BSON -> tipe JSON biasa (map[string]any, []any) supaya domain & http tidak tahu BSON.
+// normalize: BSON types -> plain JSON types (map[string]any, []any) so domain & http know nothing about BSON.
 func normalize(v any) any {
 	switch x := v.(type) {
 	case bson.M:
@@ -378,7 +378,7 @@ func normalize(v any) any {
 func (s *Store) Get(ctx context.Context, uid, id string) (*content.Entry, error) {
 	var doc bson.M
 	if err := s.entries(uid).FindOne(ctx, bson.M{kID: id}).Decode(&doc); err != nil {
-		return nil, notFound(err, "data")
+		return nil, notFound(err, "record")
 	}
 	return fromEntryDoc(doc), nil
 }
@@ -386,7 +386,7 @@ func (s *Store) Get(ctx context.Context, uid, id string) (*content.Entry, error)
 func (s *Store) Save(ctx context.Context, uid string, e *content.Entry) error {
 	_, err := s.entries(uid).ReplaceOne(ctx, bson.M{kID: e.ID}, toEntryDoc(e), options.Replace().SetUpsert(true))
 	if mongo.IsDuplicateKeyError(err) {
-		return errs.Conflict("ada nilai yang harus unik sudah dipakai data lain")
+		return errs.Conflict("a value that must be unique is already used by another record")
 	}
 	return err
 }
@@ -406,7 +406,7 @@ func (s *Store) All(ctx context.Context, uid string) ([]*content.Entry, error) {
 func (s *Store) FindOne(ctx context.Context, uid, field string, value any) (*content.Entry, error) {
 	var doc bson.M
 	if err := s.entries(uid).FindOne(ctx, bson.M{field: value, kDeleted: bson.M{"$ne": true}}).Decode(&doc); err != nil {
-		return nil, notFound(err, "data")
+		return nil, notFound(err, "record")
 	}
 	return fromEntryDoc(doc), nil
 }
@@ -416,11 +416,11 @@ func (s *Store) CountExisting(ctx context.Context, uid string, ids []string) (in
 	return int(n), err
 }
 
-// SyncUnique: index "uniq2_<field>" partial — hanya entri yang punya field tsb dan belum dihapus.
-// Index lama "uniq_<field>" (tanpa filter isDeleted) diganti.
+// SyncUnique: partial index "uniq2_<field>" — only entries that have that field and are not deleted.
+// The old "uniq_<field>" index (without the isDeleted filter) is replaced.
 func (s *Store) SyncUnique(ctx context.Context, uid string, fields []string) error {
 	col := s.entries(uid)
-	// Dokumen lama tanpa isDeleted diberi false supaya ikut partial index.
+	// Legacy documents without isDeleted are set to false so they are included in the partial index.
 	if _, err := col.UpdateMany(ctx, bson.M{kDeleted: bson.M{"$exists": false}}, bson.M{"$set": bson.M{kDeleted: false}}); err != nil {
 		return err
 	}
@@ -454,7 +454,7 @@ func (s *Store) SyncUnique(ctx context.Context, uid string, fields []string) err
 			Options: options.Index().SetName("uniq2_" + f).SetUnique(true).SetPartialFilterExpression(bson.M{f: bson.M{"$exists": true}, kDeleted: false}),
 		})
 		if mongo.IsDuplicateKeyError(err) {
-			return errs.Conflict("field %s tidak bisa dibuat unique: sudah ada nilai duplikat", f)
+			return errs.Conflict("field %s cannot be made unique: duplicate values already exist", f)
 		}
 		if err != nil {
 			return err
@@ -465,7 +465,7 @@ func (s *Store) SyncUnique(ctx context.Context, uid string, fields []string) err
 
 func (s *Store) Drop(ctx context.Context, uid string) error { return s.entries(uid).Drop(ctx) }
 
-// ---------- audit trail: collection entry_history (tetap ada walau content type dihapus) ----------
+// ---------- audit trail: collection entry_history (kept even if the content type is deleted) ----------
 
 type changeDoc struct {
 	Field string `bson:"field"`
@@ -489,13 +489,13 @@ type revisionDoc struct {
 
 func (s *Store) history() *mongo.Collection { return s.db.Collection("entry_history") }
 
-// EnsureIndexes: index riwayat (dipanggil sekali saat start).
+// EnsureIndexes: history indexes (called once at startup).
 func (s *Store) EnsureIndexes(ctx context.Context) error {
 	_, err := s.history().Indexes().CreateOne(ctx, mongo.IndexModel{Keys: bson.D{{Key: "uid", Value: 1}, {Key: "entryId", Value: 1}, {Key: "version", Value: 1}}})
 	return err
 }
 
-// NextSequence: collection counters {_id: key, seq}; $inc + upsert atomik di Mongo.
+// NextSequence: counters collection {_id: key, seq}; atomic $inc + upsert in Mongo.
 func (s *Store) NextSequence(ctx context.Context, key string) (int64, error) {
 	var d struct {
 		Seq int64 `bson:"seq"`
