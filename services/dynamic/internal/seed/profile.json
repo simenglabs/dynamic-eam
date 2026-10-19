@@ -1,0 +1,103 @@
+{
+  "components": [],
+  "contentTypes": [
+    {
+      "uid": "user-profile",
+      "label": "User Profile",
+      "parent": "administration",
+      "hidden": true,
+      "displayField": "{name}",
+      "fields": [
+        {
+          "name": "name",
+          "label": "Name",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "employeeId",
+          "label": "Employee ID",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "organization",
+          "label": "Organization",
+          "type": "relation",
+          "required": false,
+          "target": "master-organization"
+        },
+        {
+          "name": "sites",
+          "label": "Site Access",
+          "type": "relation",
+          "required": false,
+          "target": "master-site",
+          "multiple": true
+        },
+        {
+          "name": "defaultSite",
+          "label": "Default Site",
+          "type": "relation",
+          "required": false,
+          "target": "master-site"
+        },
+        {
+          "name": "jobTitle",
+          "label": "Job Title",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "phone",
+          "label": "Phone",
+          "type": "text",
+          "required": false
+        }
+      ],
+      "layout": {
+        "sections": [
+          {
+            "id": "penempatan",
+            "title": "Placement",
+            "rows": [
+              {
+                "columns": 1,
+                "fields": [
+                  "name"
+                ]
+              },
+              {
+                "columns": 2,
+                "fields": [
+                  "organization",
+                  "defaultSite"
+                ]
+              },
+              {
+                "columns": 1,
+                "fields": [
+                  "sites"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "pegawai",
+            "title": "Employee Data",
+            "rows": [
+              {
+                "columns": 3,
+                "fields": [
+                  "employeeId",
+                  "jobTitle",
+                  "phone"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

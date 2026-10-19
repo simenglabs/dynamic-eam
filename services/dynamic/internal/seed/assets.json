@@ -1,0 +1,690 @@
+{
+  "components": [],
+  "contentTypes": [
+    {
+      "uid": "asset-location",
+      "label": "Locations",
+      "parent": "assets",
+      "displayField": "{code} - {description}",
+      "fields": [
+        {
+          "name": "code",
+          "label": "Location",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "description",
+          "label": "Location Description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "type",
+          "label": "Type",
+          "type": "select",
+          "required": false,
+          "options": [
+            "Penyulang",
+            "Gardu Distribusi",
+            "Trafo",
+            "Tiang",
+            "Lainnya"
+          ]
+        },
+        {
+          "name": "parent",
+          "label": "Parent Location",
+          "type": "relation",
+          "required": false,
+          "target": "asset-location"
+        },
+        {
+          "name": "unit",
+          "label": "Unit",
+          "type": "text",
+          "required": false,
+          "default": "5100"
+        },
+        {
+          "name": "unitDescription",
+          "label": "Unit Description",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "site",
+          "label": "Site",
+          "type": "relation",
+          "required": false,
+          "target": "master-site"
+        },
+        {
+          "name": "operationStatus",
+          "label": "Operation Status",
+          "type": "select",
+          "required": false,
+          "options": [
+            "Operating",
+            "Not Ready"
+          ],
+          "default": "Not Ready"
+        }
+      ],
+      "layout": {
+        "sections": [
+          {
+            "id": "location",
+            "title": "Location",
+            "rows": [
+              {
+                "columns": 2,
+                "fields": [
+                  "code",
+                  "description"
+                ]
+              },
+              {
+                "columns": 2,
+                "fields": [
+                  "type",
+                  "parent"
+                ]
+              },
+              {
+                "columns": 3,
+                "fields": [
+                  "unit",
+                  "unitDescription",
+                  "site"
+                ]
+              },
+              {
+                "columns": 2,
+                "fields": [
+                  "operationStatus"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "workflow": {
+        "states": [
+          {
+            "key": "draft",
+            "label": "Draft",
+            "color": "neutral",
+            "editable": true
+          },
+          {
+            "key": "pending",
+            "label": "Pending Approval",
+            "color": "yellow",
+            "editable": false
+          },
+          {
+            "key": "active",
+            "label": "Active",
+            "color": "green",
+            "editable": false
+          },
+          {
+            "key": "rejected",
+            "label": "Rejected",
+            "color": "red",
+            "editable": true
+          }
+        ],
+        "initial": "draft",
+        "transitions": [
+          {
+            "key": "submit",
+            "label": "Submit",
+            "from": [
+              "draft",
+              "rejected"
+            ],
+            "to": "pending"
+          },
+          {
+            "key": "approve",
+            "label": "Approve",
+            "from": [
+              "pending"
+            ],
+            "to": "active"
+          },
+          {
+            "key": "reject",
+            "label": "Reject",
+            "from": [
+              "pending"
+            ],
+            "to": "rejected"
+          },
+          {
+            "key": "modify",
+            "label": "Request Change",
+            "from": [
+              "active"
+            ],
+            "to": "draft"
+          }
+        ],
+        "views": [
+          {
+            "key": "approval",
+            "label": "Location Approval (Modify)",
+            "parent": "assets",
+            "states": [
+              "pending"
+            ]
+          }
+        ]
+      },
+      "scopeField": "site"
+    },
+    {
+      "uid": "asset-template",
+      "label": "Asset Templates",
+      "parent": "assets",
+      "displayField": "{code} - {description}",
+      "fields": [
+        {
+          "name": "code",
+          "label": "Template Code",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "description",
+          "label": "Description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "classification",
+          "label": "Classification",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "classDescription",
+          "label": "Class Description",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "notes",
+          "label": "Notes",
+          "type": "longtext",
+          "required": false
+        }
+      ],
+      "layout": {
+        "sections": [
+          {
+            "id": "template",
+            "title": "Asset Template",
+            "rows": [
+              {
+                "columns": 2,
+                "fields": [
+                  "code",
+                  "description"
+                ]
+              },
+              {
+                "columns": 2,
+                "fields": [
+                  "classification",
+                  "classDescription"
+                ]
+              },
+              {
+                "columns": 1,
+                "fields": [
+                  "notes"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "uid": "asset-tnd",
+      "label": "Asset (T&D)",
+      "parent": "assets",
+      "displayField": "{assetCode} - {description}",
+      "fields": [
+        {
+          "name": "assetCode",
+          "label": "Asset Code",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "description",
+          "label": "Asset Description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "owner",
+          "label": "Asset Owner",
+          "type": "text",
+          "required": true,
+          "default": "5100"
+        },
+        {
+          "name": "ownerDescription",
+          "label": "Description",
+          "type": "text",
+          "required": false,
+          "default": "UID JAWA TIMUR"
+        },
+        {
+          "name": "site",
+          "label": "Site",
+          "type": "relation",
+          "required": false,
+          "target": "master-site"
+        },
+        {
+          "name": "classification",
+          "label": "Classification",
+          "type": "relation",
+          "required": true,
+          "target": "master-classification"
+        },
+        {
+          "name": "classDescription",
+          "label": "Class Description",
+          "type": "text",
+          "required": false,
+          "autoFill": {
+            "source": "relation",
+            "from": "classification",
+            "field": "description",
+            "lock": true
+          }
+        },
+        {
+          "name": "specifications",
+          "label": "Specifications",
+          "type": "attributes",
+          "required": false,
+          "from": "classification"
+        },
+        {
+          "name": "penyulang",
+          "label": "Feeder",
+          "type": "relation",
+          "required": false,
+          "target": "asset-location",
+          "where": [
+            {
+              "field": "site",
+              "value": "{site}"
+            }
+          ]
+        },
+        {
+          "name": "template",
+          "label": "Asset Template",
+          "type": "relation",
+          "required": false,
+          "target": "asset-template"
+        },
+        {
+          "name": "linear",
+          "label": "Linear?",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "isGis",
+          "label": "Is GIS?",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "tujdNumber",
+          "label": "TUJD Number",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "ssotNumber",
+          "label": "SSOT Number",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "nia",
+          "label": "NIA",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "externalRefId",
+          "label": "External Reference ID",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "ownerSystemId",
+          "label": "Owner System ID",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "operatingDate",
+          "label": "Operating Date",
+          "type": "date",
+          "required": true
+        },
+        {
+          "name": "tahunBuat",
+          "label": "Year Built",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "prkNumber",
+          "label": "PRK Number",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "uraianKegiatan",
+          "label": "Activity Description",
+          "type": "longtext",
+          "required": false
+        },
+        {
+          "name": "location",
+          "label": "Location",
+          "type": "relation",
+          "required": false,
+          "target": "asset-location",
+          "where": [
+            {
+              "field": "site",
+              "value": "{site}"
+            }
+          ]
+        },
+        {
+          "name": "parent",
+          "label": "Parent",
+          "type": "relation",
+          "required": false,
+          "target": "asset-tnd"
+        },
+        {
+          "name": "healthIndex",
+          "label": "Asset Class Health Index",
+          "type": "domain",
+          "required": true,
+          "domain": "HEALTH_INDEX"
+        },
+        {
+          "name": "priority",
+          "label": "Priority",
+          "type": "domain",
+          "required": true,
+          "domain": "PRIORITY"
+        },
+        {
+          "name": "failureClass",
+          "label": "Failure Class",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "serialNumber",
+          "label": "Serial Number",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "operationStatus",
+          "label": "Operation Status",
+          "type": "select",
+          "required": false,
+          "options": [
+            "Operating",
+            "Not Ready"
+          ],
+          "default": "Not Ready"
+        },
+        {
+          "name": "attachments",
+          "label": "Attachments",
+          "type": "media",
+          "required": false,
+          "multiple": true
+        }
+      ],
+      "layout": {
+        "sections": [
+          {
+            "id": "asset",
+            "title": "Asset",
+            "rows": [
+              {
+                "columns": 2,
+                "fields": [
+                  "assetCode",
+                  "description"
+                ]
+              },
+              {
+                "columns": 3,
+                "fields": [
+                  "owner",
+                  "ownerDescription",
+                  "site"
+                ]
+              },
+              {
+                "columns": 2,
+                "fields": [
+                  "classification",
+                  "classDescription"
+                ]
+              },
+              {
+                "columns": 2,
+                "fields": [
+                  "penyulang",
+                  "template"
+                ]
+              },
+              {
+                "columns": 4,
+                "fields": [
+                  "linear",
+                  "isGis"
+                ]
+              },
+              {
+                "columns": 3,
+                "fields": [
+                  "tujdNumber",
+                  "ssotNumber",
+                  "nia"
+                ]
+              },
+              {
+                "columns": 2,
+                "fields": [
+                  "externalRefId",
+                  "ownerSystemId"
+                ]
+              },
+              {
+                "columns": 2,
+                "fields": [
+                  "operatingDate",
+                  "tahunBuat"
+                ]
+              },
+              {
+                "columns": 2,
+                "fields": [
+                  "prkNumber",
+                  "uraianKegiatan"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "specifications",
+            "title": "Specifications",
+            "rows": [
+              {
+                "columns": 1,
+                "fields": [
+                  "specifications"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "details",
+            "title": "Asset Details",
+            "rows": [
+              {
+                "columns": 2,
+                "fields": [
+                  "location",
+                  "parent"
+                ]
+              },
+              {
+                "columns": 4,
+                "fields": [
+                  "healthIndex",
+                  "priority",
+                  "failureClass",
+                  "serialNumber"
+                ]
+              },
+              {
+                "columns": 2,
+                "fields": [
+                  "operationStatus"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "attachments",
+            "title": "Attachments",
+            "rows": [
+              {
+                "columns": 1,
+                "fields": [
+                  "attachments"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "workflow": {
+        "states": [
+          {
+            "key": "draft",
+            "label": "Draft",
+            "color": "neutral",
+            "editable": true
+          },
+          {
+            "key": "pending",
+            "label": "Pending Approval",
+            "color": "yellow",
+            "editable": false
+          },
+          {
+            "key": "active",
+            "label": "Active",
+            "color": "green",
+            "editable": false
+          },
+          {
+            "key": "rejected",
+            "label": "Rejected",
+            "color": "red",
+            "editable": true
+          }
+        ],
+        "initial": "draft",
+        "transitions": [
+          {
+            "key": "submit",
+            "label": "Submit",
+            "from": [
+              "draft",
+              "rejected"
+            ],
+            "to": "pending"
+          },
+          {
+            "key": "approve",
+            "label": "Approve",
+            "from": [
+              "pending"
+            ],
+            "to": "active"
+          },
+          {
+            "key": "reject",
+            "label": "Reject",
+            "from": [
+              "pending"
+            ],
+            "to": "rejected"
+          },
+          {
+            "key": "modify",
+            "label": "Request Change",
+            "from": [
+              "active"
+            ],
+            "to": "draft"
+          }
+        ],
+        "views": [
+          {
+            "key": "approval",
+            "label": "Asset Approval (Modify)",
+            "parent": "assets",
+            "states": [
+              "pending"
+            ]
+          },
+          {
+            "key": "report",
+            "label": "Run Report Assets",
+            "parent": "assets",
+            "states": [
+              "draft",
+              "pending",
+              "active",
+              "rejected"
+            ]
+          }
+        ]
+      },
+      "scopeField": "site"
+    }
+  ]
+}

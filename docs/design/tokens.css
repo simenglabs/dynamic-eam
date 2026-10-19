@@ -1,0 +1,78 @@
+/* Captured from staging.cmms-distribusi.aegis.co.id (2026-10-19).
+   Stack: Tailwind CSS v4 + shadcn/ui, lucide-react icons, font Inter.
+   NOTE: root font-size = 14px (1rem = 14px). */
+
+:root {
+  font-size: 14px;
+  --font-sans: "Inter", system-ui, sans-serif;
+  --radius: 0.625rem;
+
+  /* Brand primary (teal) */
+  --primary-50: #ebfffe;
+  --primary-100: #cdffff;
+  --primary-200: #a1fdff;
+  --primary-300: #60f8ff;
+  --primary-400: #18eaf8;
+  --primary-500: #00ccde;
+  --primary-600: #00a2b9; /* = --primary */
+  --primary-700: #088196;
+  --primary-800: #10677a;
+  --primary-900: #125667;
+  --primary-950: #053947; /* = sidebar rail */
+
+  /* Corporate */
+  --korp-yellow: #ffff00;
+  --korp-red: #ff0000;
+  --korp-blue: #00aff0;
+  --korp-emerald: #035b71;
+  --korp-tosca: #00a2b9;
+
+  /* shadcn semantic */
+  --background: #ffffff;
+  --foreground: #314158; /* slate-700, body text */
+  --card: #ffffff;
+  --card-foreground: #0a0a0a;
+  --popover: #ffffff;
+  --popover-foreground: #0a0a0a;
+  --primary: var(--primary-600);
+  --primary-foreground: #fafafa;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #171717;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --accent: rgba(0, 162, 185, 0.1);
+  --accent-foreground: #171717;
+  --destructive: #c20039; /* rose-700 */
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: var(--primary-600);
+  --tersier: #a1a1a1;
+
+  /* Status */
+  --red: #c20039;    /* rose-700 */
+  --green: #008138;  /* green-700 */
+  --yellow: #a36100; /* yellow-700 */
+  --blue: #1447e6;   /* blue-700 */
+  --neutral: #3f3f46; /* zinc-700 */
+
+  /* Charts */
+  --chart-1: #f05100;
+  --chart-2: #009588;
+  --chart-3: #104e64;
+  --chart-4: #fcbb00;
+  --chart-5: #f99c00;
+
+  /* Sidebar */
+  --sidebar: var(--primary-950);
+  --sidebar-foreground: var(--primary-500);
+  --sidebar-accent: var(--primary);
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-width: 105px;          /* icon rail */
+  --sidebar-children-width: 243px; /* flyout submenu, bg slate-200 #e2e8f0 */
+
+  /* Table */
+  --table-head-bg: #e2e8f0;   /* slate-200 */
+  --table-row-even: #f8fafc;  /* slate-50 */
+  --table-row-hover: #e5f5f8;
+  --table-row-border: #09090b1a;
+}

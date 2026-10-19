@@ -1,0 +1,1170 @@
+{
+  "components": [
+    {
+      "uid": "domain-value",
+      "label": "Domain Value",
+      "fields": [
+        {
+          "name": "valueId",
+          "label": "Value ID",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "valueDescription",
+          "label": "Value Description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "sortOrder",
+          "label": "Sort Order",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "isDefault",
+          "label": "Default",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "isActive",
+          "label": "Active",
+          "type": "boolean",
+          "required": false,
+          "default": true
+        }
+      ]
+    },
+    {
+      "uid": "classification-use-with",
+      "label": "Use With",
+      "fields": [
+        {
+          "name": "object",
+          "label": "Object",
+          "type": "select",
+          "required": true,
+          "options": [
+            "ASSET",
+            "LOCATION",
+            "WORKORDER",
+            "ITEM"
+          ]
+        },
+        {
+          "name": "description",
+          "label": "Notes",
+          "type": "text",
+          "required": false
+        }
+      ]
+    },
+    {
+      "uid": "classification-attribute",
+      "label": "Classification Attribute",
+      "fields": [
+        {
+          "name": "attribute",
+          "label": "Attribute",
+          "type": "relation",
+          "required": true,
+          "target": "master-attribute"
+        },
+        {
+          "name": "mandatory",
+          "label": "Mandatory",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "sortOrder",
+          "label": "Sort Order",
+          "type": "number",
+          "required": false
+        }
+      ]
+    }
+  ],
+  "contentTypes": [
+    {
+      "uid": "master-domain",
+      "label": "Domain",
+      "parent": "master",
+      "displayField": "{domainCode} - {description}",
+      "fields": [
+        {
+          "name": "domainCode",
+          "label": "Domain",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "description",
+          "label": "Description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "domainType",
+          "label": "Type",
+          "type": "select",
+          "required": false,
+          "options": [
+            "ALN",
+            "NUMERIC",
+            "SYNONYM"
+          ],
+          "default": "ALN"
+        },
+        {
+          "name": "values",
+          "label": "Values",
+          "type": "component",
+          "required": false,
+          "component": "domain-value",
+          "repeatable": true,
+          "uniqueBy": "valueId"
+        }
+      ],
+      "layout": {
+        "sections": [
+          {
+            "id": "domain",
+            "title": "Domain",
+            "rows": [
+              {
+                "columns": 3,
+                "fields": [
+                  "domainCode",
+                  "description",
+                  "domainType"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "values",
+            "title": "Values",
+            "rows": [
+              {
+                "columns": 1,
+                "fields": [
+                  "values"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "uid": "master-classification",
+      "label": "Classification",
+      "parent": "master",
+      "displayField": "{classificationCode} - {description}",
+      "fields": [
+        {
+          "name": "classificationCode",
+          "label": "Classification",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "description",
+          "label": "Description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "parent",
+          "label": "Parent",
+          "type": "relation",
+          "required": false,
+          "target": "master-classification"
+        },
+        {
+          "name": "organization",
+          "label": "Organization",
+          "type": "relation",
+          "required": false,
+          "target": "master-organization"
+        },
+        {
+          "name": "site",
+          "label": "Site",
+          "type": "relation",
+          "required": false,
+          "target": "master-site"
+        },
+        {
+          "name": "isActive",
+          "label": "Active",
+          "type": "boolean",
+          "required": false,
+          "default": true
+        },
+        {
+          "name": "useWith",
+          "label": "Use With",
+          "type": "component",
+          "required": false,
+          "component": "classification-use-with",
+          "repeatable": true,
+          "uniqueBy": "object"
+        },
+        {
+          "name": "attributes",
+          "label": "Attributes",
+          "type": "component",
+          "required": false,
+          "component": "classification-attribute",
+          "repeatable": true,
+          "uniqueBy": "attribute"
+        }
+      ],
+      "layout": {
+        "sections": [
+          {
+            "id": "classification",
+            "title": "Classification",
+            "rows": [
+              {
+                "columns": 2,
+                "fields": [
+                  "classificationCode",
+                  "description"
+                ]
+              },
+              {
+                "columns": 3,
+                "fields": [
+                  "parent",
+                  "organization",
+                  "site"
+                ]
+              },
+              {
+                "columns": 4,
+                "fields": [
+                  "isActive"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "use-with",
+            "title": "Use With",
+            "rows": [
+              {
+                "columns": 1,
+                "fields": [
+                  "useWith"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "attributes",
+            "title": "Attributes",
+            "rows": [
+              {
+                "columns": 1,
+                "fields": [
+                  "attributes"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "uid": "master-organization",
+      "label": "Organizations",
+      "parent": "master",
+      "displayField": "{organizationName} - {organizationDescription}",
+      "fields": [
+        {
+          "name": "organizationName",
+          "label": "Organization",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "organizationDescription",
+          "label": "Description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "baseCurrency",
+          "label": "Base Currency",
+          "type": "text",
+          "required": true,
+          "default": "IDR"
+        },
+        {
+          "name": "baseCurrencyDescription",
+          "label": "Base Currency Description",
+          "type": "text",
+          "required": false,
+          "default": "Indonesian Rupiah"
+        },
+        {
+          "name": "baseCurrencySecondary",
+          "label": "Secondary Currency",
+          "type": "text",
+          "required": false,
+          "default": "USD"
+        },
+        {
+          "name": "baseCurrencyDescriptionSecondary",
+          "label": "Secondary Currency Description",
+          "type": "text",
+          "required": false,
+          "default": "US Dollar"
+        },
+        {
+          "name": "itemSet",
+          "label": "Item Set",
+          "type": "text",
+          "required": false,
+          "default": "ITEMSET"
+        },
+        {
+          "name": "itemSetDescription",
+          "label": "Item Set Description",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "companySet",
+          "label": "Company Set",
+          "type": "text",
+          "required": false,
+          "default": "COMPSET"
+        },
+        {
+          "name": "companySetDescription",
+          "label": "Company Set Description",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "defaultStockCategory",
+          "label": "Default Stock Category",
+          "type": "text",
+          "required": false,
+          "default": "STK"
+        },
+        {
+          "name": "clearingAccount",
+          "label": "Clearing Account",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "defaultItemStatus",
+          "label": "Default Item Status",
+          "type": "select",
+          "required": false,
+          "options": [
+            "ACTIVE",
+            "INACTIVE",
+            "PENDING"
+          ],
+          "default": "ACTIVE"
+        },
+        {
+          "name": "isActive",
+          "label": "Active",
+          "type": "boolean",
+          "required": false,
+          "default": true
+        }
+      ],
+      "layout": {
+        "sections": [
+          {
+            "id": "organization",
+            "title": "Organization",
+            "rows": [
+              {
+                "columns": 2,
+                "fields": [
+                  "organizationName",
+                  "organizationDescription"
+                ]
+              },
+              {
+                "columns": 4,
+                "fields": [
+                  "isActive"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "currency",
+            "title": "Currency",
+            "rows": [
+              {
+                "columns": 2,
+                "fields": [
+                  "baseCurrency",
+                  "baseCurrencyDescription"
+                ]
+              },
+              {
+                "columns": 2,
+                "fields": [
+                  "baseCurrencySecondary",
+                  "baseCurrencyDescriptionSecondary"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "settings",
+            "title": "Default Settings",
+            "rows": [
+              {
+                "columns": 2,
+                "fields": [
+                  "itemSet",
+                  "itemSetDescription"
+                ]
+              },
+              {
+                "columns": 2,
+                "fields": [
+                  "companySet",
+                  "companySetDescription"
+                ]
+              },
+              {
+                "columns": 3,
+                "fields": [
+                  "defaultStockCategory",
+                  "clearingAccount",
+                  "defaultItemStatus"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "uid": "master-map-symbol",
+      "label": "Map Symbols",
+      "parent": "master",
+      "displayField": "{code} - {name}",
+      "fields": [
+        {
+          "name": "code",
+          "label": "Symbol Code",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "name",
+          "label": "Name",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "classification",
+          "label": "Classification",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "geometry",
+          "label": "Geometry",
+          "type": "select",
+          "required": true,
+          "options": [
+            "Point",
+            "Line",
+            "Polygon"
+          ],
+          "default": "Point"
+        },
+        {
+          "name": "color",
+          "label": "Color (hex)",
+          "type": "text",
+          "required": false,
+          "default": "#185c40"
+        },
+        {
+          "name": "size",
+          "label": "Size (px)",
+          "type": "number",
+          "required": false,
+          "default": 16
+        },
+        {
+          "name": "icon",
+          "label": "Icon",
+          "type": "media",
+          "required": false
+        },
+        {
+          "name": "isActive",
+          "label": "Active",
+          "type": "boolean",
+          "required": false,
+          "default": true
+        }
+      ],
+      "layout": {
+        "sections": [
+          {
+            "id": "symbol",
+            "title": "Map Symbol",
+            "rows": [
+              {
+                "columns": 2,
+                "fields": [
+                  "code",
+                  "name"
+                ]
+              },
+              {
+                "columns": 2,
+                "fields": [
+                  "classification",
+                  "geometry"
+                ]
+              },
+              {
+                "columns": 3,
+                "fields": [
+                  "color",
+                  "size",
+                  "isActive"
+                ]
+              },
+              {
+                "columns": 1,
+                "fields": [
+                  "icon"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "uid": "master-service-address",
+      "label": "Service Address",
+      "parent": "master",
+      "displayField": "{code} - {description}",
+      "fields": [
+        {
+          "name": "code",
+          "label": "Service Address",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "description",
+          "label": "Description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "organization",
+          "label": "Organization",
+          "type": "relation",
+          "required": false,
+          "target": "master-organization"
+        },
+        {
+          "name": "site",
+          "label": "Site",
+          "type": "relation",
+          "required": false,
+          "target": "master-site"
+        },
+        {
+          "name": "address",
+          "label": "Address",
+          "type": "longtext",
+          "required": false
+        },
+        {
+          "name": "province",
+          "label": "Province",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "district",
+          "label": "District/City",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "postalCode",
+          "label": "Postal Code",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "latitude",
+          "label": "Latitude",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "longitude",
+          "label": "Longitude",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "isActive",
+          "label": "Active",
+          "type": "boolean",
+          "required": false,
+          "default": true
+        }
+      ],
+      "layout": {
+        "sections": [
+          {
+            "id": "service-address",
+            "title": "Service Address",
+            "rows": [
+              {
+                "columns": 2,
+                "fields": [
+                  "code",
+                  "description"
+                ]
+              },
+              {
+                "columns": 2,
+                "fields": [
+                  "organization",
+                  "site"
+                ]
+              },
+              {
+                "columns": 4,
+                "fields": [
+                  "isActive"
+                ]
+              }
+            ]
+          },
+          {
+            "id": "location",
+            "title": "Location",
+            "rows": [
+              {
+                "columns": 1,
+                "fields": [
+                  "address"
+                ]
+              },
+              {
+                "columns": 3,
+                "fields": [
+                  "province",
+                  "district",
+                  "postalCode"
+                ]
+              },
+              {
+                "columns": 2,
+                "fields": [
+                  "latitude",
+                  "longitude"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "uid": "master-site",
+      "label": "Sites",
+      "parent": "master",
+      "displayField": "{siteCode} - {description}",
+      "fields": [
+        {
+          "name": "siteCode",
+          "label": "Site",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "description",
+          "label": "Description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "parent",
+          "label": "Parent Site",
+          "type": "relation",
+          "required": false,
+          "target": "master-site"
+        },
+        {
+          "name": "organization",
+          "label": "Organization",
+          "type": "relation",
+          "required": true,
+          "target": "master-organization"
+        },
+        {
+          "name": "unit",
+          "label": "Unit",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "unitDescription",
+          "label": "Unit Description",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "address",
+          "label": "Address",
+          "type": "longtext",
+          "required": false
+        },
+        {
+          "name": "timezone",
+          "label": "Timezone",
+          "type": "select",
+          "required": false,
+          "options": [
+            "Asia/Jakarta",
+            "Asia/Makassar",
+            "Asia/Jayapura",
+            "UTC"
+          ],
+          "default": "Asia/Jakarta"
+        },
+        {
+          "name": "isActive",
+          "label": "Active",
+          "type": "boolean",
+          "required": false,
+          "default": true
+        }
+      ],
+      "layout": {
+        "sections": [
+          {
+            "id": "site",
+            "title": "Site",
+            "rows": [
+              {
+                "columns": 2,
+                "fields": [
+                  "siteCode",
+                  "description"
+                ]
+              },
+              {
+                "columns": 1,
+                "fields": [
+                  "parent"
+                ]
+              },
+              {
+                "columns": 3,
+                "fields": [
+                  "organization",
+                  "unit",
+                  "unitDescription"
+                ]
+              },
+              {
+                "columns": 1,
+                "fields": [
+                  "address"
+                ]
+              },
+              {
+                "columns": 3,
+                "fields": [
+                  "timezone",
+                  "isActive"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "uid": "master-uom",
+      "label": "Unit of Measure",
+      "parent": "master",
+      "displayField": "{uomCode} - {description}",
+      "fields": [
+        {
+          "name": "uomCode",
+          "label": "UOM Code",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "description",
+          "label": "Description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "measureType",
+          "label": "Measure Type",
+          "type": "select",
+          "required": true,
+          "options": [
+            "QUANTITY",
+            "LENGTH",
+            "AREA",
+            "VOLUME",
+            "WEIGHT",
+            "TIME",
+            "ELECTRICAL"
+          ],
+          "default": "QUANTITY"
+        },
+        {
+          "name": "decimalPlaces",
+          "label": "Decimals",
+          "type": "number",
+          "required": false,
+          "default": 0
+        },
+        {
+          "name": "isActive",
+          "label": "Active",
+          "type": "boolean",
+          "required": false,
+          "default": true
+        }
+      ],
+      "layout": {
+        "sections": [
+          {
+            "id": "uom",
+            "title": "Unit of Measure",
+            "rows": [
+              {
+                "columns": 2,
+                "fields": [
+                  "uomCode",
+                  "description"
+                ]
+              },
+              {
+                "columns": 3,
+                "fields": [
+                  "measureType",
+                  "decimalPlaces",
+                  "isActive"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "uid": "master-attribute",
+      "label": "Attributes",
+      "parent": "master",
+      "displayField": "{attributeId} - {description}",
+      "fields": [
+        {
+          "name": "attributeId",
+          "label": "Attribute",
+          "type": "text",
+          "required": true,
+          "unique": true
+        },
+        {
+          "name": "description",
+          "label": "Description",
+          "type": "text",
+          "required": true
+        },
+        {
+          "name": "dataType",
+          "label": "Data Type",
+          "type": "select",
+          "required": true,
+          "options": [
+            "ALN",
+            "NUMERIC",
+            "DATE",
+            "BOOLEAN"
+          ],
+          "default": "ALN"
+        },
+        {
+          "name": "unit",
+          "label": "Unit",
+          "type": "text",
+          "required": false
+        },
+        {
+          "name": "domain",
+          "label": "Domain",
+          "type": "relation",
+          "required": false,
+          "target": "master-domain"
+        },
+        {
+          "name": "length",
+          "label": "Length",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "scale",
+          "label": "Decimals",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "isActive",
+          "label": "Active",
+          "type": "boolean",
+          "required": false,
+          "default": true
+        }
+      ],
+      "layout": {
+        "sections": [
+          {
+            "id": "attribute",
+            "title": "Attribute",
+            "rows": [
+              {
+                "columns": 2,
+                "fields": [
+                  "attributeId",
+                  "description"
+                ]
+              },
+              {
+                "columns": 3,
+                "fields": [
+                  "dataType",
+                  "unit",
+                  "domain"
+                ]
+              },
+              {
+                "columns": 3,
+                "fields": [
+                  "length",
+                  "scale",
+                  "isActive"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "entries": [
+    {
+      "uid": "master-domain",
+      "key": "domainCode",
+      "rows": [
+        {
+          "domainCode": "PRIORITY",
+          "description": "Priority",
+          "domainType": "ALN",
+          "values": [
+            {
+              "valueId": "LOW",
+              "valueDescription": "Low",
+              "sortOrder": 1,
+              "isDefault": false,
+              "isActive": true
+            },
+            {
+              "valueId": "MEDIUM",
+              "valueDescription": "Medium",
+              "sortOrder": 2,
+              "isDefault": true,
+              "isActive": true
+            },
+            {
+              "valueId": "HIGH",
+              "valueDescription": "High",
+              "sortOrder": 3,
+              "isDefault": false,
+              "isActive": true
+            }
+          ]
+        },
+        {
+          "domainCode": "HEALTH_INDEX",
+          "description": "Asset Class Health Index",
+          "domainType": "ALN",
+          "values": [
+            {
+              "valueId": "BAIK",
+              "valueDescription": "Good",
+              "sortOrder": 1,
+              "isDefault": true,
+              "isActive": true
+            },
+            {
+              "valueId": "CUKUP",
+              "valueDescription": "Fair",
+              "sortOrder": 2,
+              "isDefault": false,
+              "isActive": true
+            },
+            {
+              "valueId": "BURUK",
+              "valueDescription": "Poor",
+              "sortOrder": 3,
+              "isDefault": false,
+              "isActive": true
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "uid": "master-uom",
+      "key": "uomCode",
+      "rows": [
+        {
+          "uomCode": "EA",
+          "description": "Each",
+          "measureType": "QUANTITY",
+          "decimalPlaces": 0,
+          "isActive": true
+        },
+        {
+          "uomCode": "UNIT",
+          "description": "Unit",
+          "measureType": "QUANTITY",
+          "decimalPlaces": 0,
+          "isActive": true
+        },
+        {
+          "uomCode": "SET",
+          "description": "Set",
+          "measureType": "QUANTITY",
+          "decimalPlaces": 0,
+          "isActive": true
+        },
+        {
+          "uomCode": "BTG",
+          "description": "Rod",
+          "measureType": "QUANTITY",
+          "decimalPlaces": 0,
+          "isActive": true
+        },
+        {
+          "uomCode": "ROLL",
+          "description": "Roll",
+          "measureType": "QUANTITY",
+          "decimalPlaces": 0,
+          "isActive": true
+        },
+        {
+          "uomCode": "M",
+          "description": "Meter",
+          "measureType": "LENGTH",
+          "decimalPlaces": 2,
+          "isActive": true
+        },
+        {
+          "uomCode": "KMS",
+          "description": "Circuit Kilometer",
+          "measureType": "LENGTH",
+          "decimalPlaces": 3,
+          "isActive": true
+        },
+        {
+          "uomCode": "M2",
+          "description": "Square Meter",
+          "measureType": "AREA",
+          "decimalPlaces": 2,
+          "isActive": true
+        },
+        {
+          "uomCode": "L",
+          "description": "Liter",
+          "measureType": "VOLUME",
+          "decimalPlaces": 2,
+          "isActive": true
+        },
+        {
+          "uomCode": "KG",
+          "description": "Kilogram",
+          "measureType": "WEIGHT",
+          "decimalPlaces": 2,
+          "isActive": true
+        },
+        {
+          "uomCode": "TON",
+          "description": "Ton",
+          "measureType": "WEIGHT",
+          "decimalPlaces": 3,
+          "isActive": true
+        },
+        {
+          "uomCode": "JAM",
+          "description": "Hour",
+          "measureType": "TIME",
+          "decimalPlaces": 1,
+          "isActive": true
+        },
+        {
+          "uomCode": "KVA",
+          "description": "Kilovolt Ampere",
+          "measureType": "ELECTRICAL",
+          "decimalPlaces": 2,
+          "isActive": true
+        },
+        {
+          "uomCode": "KW",
+          "description": "Kilowatt",
+          "measureType": "ELECTRICAL",
+          "decimalPlaces": 2,
+          "isActive": true
+        },
+        {
+          "uomCode": "KWH",
+          "description": "Kilowatt Hour",
+          "measureType": "ELECTRICAL",
+          "decimalPlaces": 2,
+          "isActive": true
+        }
+      ]
+    }
+  ]
+}

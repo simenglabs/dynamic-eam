@@ -1,0 +1,27 @@
+{
+  "name": "@eam/ui",
+  "private": true,
+  "exports": {
+    ".": "./src/index.ts",
+    "./menu": "./src/menu.ts",
+    "./ui": "./src/ui.tsx",
+    "./dialog": "./src/Dialog.tsx",
+    "./logo": "./src/Logo.tsx",
+    "./combobox": "./src/Combobox.tsx",
+    "./checkbox": "./src/Checkbox.tsx",
+    "./styles.css": "./src/styles.css"
+  },
+  "dependencies": {
+    "@fontsource-variable/inter": "5.3.0",
+    "lucide-react": "^1.59.0"
+  },
+  "peerDependencies": {
+    "next": "16.4.2",
+    "react": "^19"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "next": "16.4.2",
+    "react": "^19.3.1"
+  }
+}

@@ -1,0 +1,10 @@
+go 1.26.4
+
+use (
+	./administration
+	./common
+	./dynamic
+	./renkon
+	./sigv2
+	./work-order
+)
