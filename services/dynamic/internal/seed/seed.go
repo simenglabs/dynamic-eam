@@ -1,4 +1,4 @@
-// Package seed: definisi content type bawaan (format JSON = API /content-types).
+// Package seed: built-in content type definitions (JSON format = the /content-types API).
 // Created at service start when missing; existing ones are never overwritten.
 package seed
 
